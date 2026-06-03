@@ -1,0 +1,445 @@
+/* Wrapper */
+.grid-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  /* padding-left: 0.5rem; */
+  /* padding-right: 0.5rem; */
+}
+
+.grid-container-map {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-left: 0rem;
+  padding-right: 0rem;
+}
+
+.grid-container-interior {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.grid-container.full-width {
+  width: 100%;
+  padding: 0;
+}
+
+.grid-container.max-width {
+  max-width: 1728px;
+  margin: 0 auto;
+}
+
+/* Container Variants */
+.grid-container.fluid {
+  max-width: 100%;
+  padding-left: 1rem;
+  /* padding-right: 1rem; */
+}
+
+.grid-container.responsive {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.grid-container.responsive.left {
+  max-width: 1400px;
+  margin-left: 0px;
+  margin-right: auto;
+}
+
+.grid-container.fixed {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.col-fixed-70 {
+  flex: 0 0 70px;
+  max-width: 70px;
+}
+
+.col-fixed-80 {
+  flex: 0 0 80px;
+  max-width: 80px;
+}
+
+.col-fixed-100 {
+  flex: 0 0 100px;
+  max-width: 100px;
+}
+
+/* Columns */
+[class*="col-"] {
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+[class*="col-"] {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+/* Responsive Column Widths */
+.col {
+  flex: 1 1 0%;
+}
+
+.col-fixed {
+  flex: 0 0 auto;
+}
+
+.col-map {
+  flex: 0 0 50%;
+}
+
+.col-info {
+  flex: 0 0 50%;
+}
+
+.interior:first-child {
+  padding-left: 0;
+}
+.interior:last-child {
+  padding-right: 0;
+}
+
+@media (max-width: 600px) {
+  .col-map {
+    flex: 0 0 100%;
+  }
+
+  .col-info {
+    flex: 0 0 100%;
+  }
+  .interior {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+.col-1 {
+  flex: 0 0 8.33%;
+}
+.col-2 {
+  flex: 0 0 16.66%;
+}
+.col-3 {
+  flex: 0 0 25%;
+}
+.col-4 {
+  flex: 0 0 33.33%;
+}
+.col-5 {
+  flex: 0 0 41.66%;
+}
+.col-6 {
+  flex: 0 0 50%;
+}
+.col-7 {
+  flex: 0 0 58.33%;
+}
+.col-8 {
+  flex: 0 0 66.66%;
+}
+.col-9 {
+  flex: 0 0 75%;
+}
+.col-10 {
+  flex: 0 0 83.33%;
+}
+.col-11 {
+  flex: 0 0 91.66%;
+}
+.col-12 {
+  flex: 0 0 100%;
+}
+
+@media (min-width: 576px) {
+  .col-1-sm {
+    flex: 0 0 8.33%;
+  }
+  .col-2-sm {
+    flex: 0 0 16.66%;
+  }
+  .col-3-sm {
+    flex: 0 0 25%;
+  }
+  .col-4-sm {
+    flex: 0 0 33.33%;
+  }
+  .col-5-sm {
+    flex: 0 0 41.66%;
+  }
+  .col-6-sm {
+    flex: 0 0 50%;
+  }
+  .col-7-sm {
+    flex: 0 0 58.33%;
+  }
+  .col-8-sm {
+    flex: 0 0 66.66%;
+  }
+  .col-9-sm {
+    flex: 0 0 75%;
+  }
+  .col-10-sm {
+    flex: 0 0 83.33%;
+  }
+  .col-11-sm {
+    flex: 0 0 91.66%;
+  }
+  .col-12-sm {
+    flex: 0 0 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  .col-1-md {
+    flex: 0 0 8.33%;
+  }
+  .col-2-md {
+    flex: 0 0 16.66%;
+  }
+  .col-3-md {
+    flex: 0 0 25%;
+  }
+  .col-4-md {
+    flex: 0 0 33.33%;
+  }
+  .col-5-md {
+    flex: 0 0 41.66%;
+  }
+  .col-6-md {
+    flex: 0 0 50%;
+  }
+  .col-7-md {
+    flex: 0 0 58.33%;
+  }
+  .col-8-md {
+    flex: 0 0 66.66%;
+  }
+  .col-9-md {
+    flex: 0 0 75%;
+  }
+  .col-10-md {
+    flex: 0 0 83.33%;
+  }
+  .col-11-md {
+    flex: 0 0 91.66%;
+  }
+  .col-12-md {
+    flex: 0 0 100%;
+  }
+}
+
+@media (min-width: 992px) {
+  .col-1-lg {
+    flex: 0 0 8.33%;
+  }
+  .col-2-lg {
+    flex: 0 0 16.66%;
+  }
+  .col-3-lg {
+    flex: 0 0 25%;
+  }
+  .col-4-lg {
+    flex: 0 0 33.33%;
+  }
+  .col-5-lg {
+    flex: 0 0 41.66%;
+  }
+  .col-6-lg {
+    flex: 0 0 50%;
+  }
+  .col-7-lg {
+    flex: 0 0 58.33%;
+  }
+  .col-8-lg {
+    flex: 0 0 66.66%;
+  }
+  .col-9-lg {
+    flex: 0 0 75%;
+  }
+  .col-10-lg {
+    flex: 0 0 83.33%;
+  }
+  .col-11-lg {
+    flex: 0 0 91.66%;
+  }
+  .col-12-lg {
+    flex: 0 0 100%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .col-1-xl {
+    flex: 0 0 8.33%;
+  }
+  .col-2-xl {
+    flex: 0 0 16.66%;
+  }
+  .col-3-xl {
+    flex: 0 0 25%;
+  }
+  .col-4-xl {
+    flex: 0 0 33.33%;
+  }
+  .col-5-xl {
+    flex: 0 0 41.66%;
+  }
+  .col-6-xl {
+    flex: 0 0 50%;
+  }
+  .col-7-xl {
+    flex: 0 0 58.33%;
+  }
+  .col-8-xl {
+    flex: 0 0 66.66%;
+  }
+  .col-9-xl {
+    flex: 0 0 75%;
+  }
+  .col-10-xl {
+    flex: 0 0 83.33%;
+  }
+  .col-11-xl {
+    flex: 0 0 91.66%;
+  }
+  .col-12-xl {
+    flex: 0 0 100%;
+  }
+}
+
+/* Offset classes */
+.offset-1 {
+  margin-left: 8.33%;
+}
+.offset-2 {
+  margin-left: 16.66%;
+}
+.offset-3 {
+  margin-left: 25%;
+}
+.offset-4 {
+  margin-left: 33.33%;
+}
+.offset-5 {
+  margin-left: 41.66%;
+}
+.offset-6 {
+  margin-left: 50%;
+}
+.offset-7 {
+  margin-left: 58.33%;
+}
+.offset-8 {
+  margin-left: 66.66%;
+}
+.offset-9 {
+  margin-left: 75%;
+}
+.offset-10 {
+  margin-left: 83.33%;
+}
+.offset-11 {
+  margin-left: 91.66%;
+}
+
+/* Visibility utilities */
+.hidden-xs {
+  display: none;
+}
+@media (min-width: var(--breakpoint-sm)) {
+  .hidden-sm {
+    display: none;
+  }
+}
+@media (min-width: var(--breakpoint-md)) {
+  .hidden-md {
+    display: none;
+  }
+}
+@media (min-width: var(--breakpoint-lg)) {
+  .hidden-lg {
+    display: none;
+  }
+}
+@media (min-width: var(--breakpoint-xl)) {
+  .hidden-xl {
+    display: none;
+  }
+}
+
+/* Flexbox order utilities */
+.order-first {
+  order: -1;
+}
+.order-last {
+  order: 1;
+}
+.order-none {
+  order: 0;
+}
+
+/* Example for responsive reordering */
+@media (min-width: var(--breakpoint-md)) {
+  .order-md-1 {
+    order: 1;
+  }
+  .order-md-2 {
+    order: 2;
+  }
+}
+
+/* Alignment classes */
+.align-start {
+  align-items: flex-start;
+}
+.align-center {
+  align-items: center;
+}
+.align-end {
+  align-items: flex-end;
+}
+
+/* Justification classes */
+.justify-start {
+  justify-content: flex-start;
+}
+.justify-center {
+  justify-content: center;
+}
+.justify-end {
+  justify-content: flex-end;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.justify-around {
+  justify-content: space-around;
+}
+
+/* Full-height utilities */
+.full-height {
+  height: 100%;
+}
+.full-height-row {
+  display: flex;
+  height: 100%;
+}
+
+/* Column spanning */
+.col-span-2 {
+  grid-column: span 2;
+}
+.col-span-3 {
+  grid-column: span 3;
+}
+.col-span-4 {
+  grid-column: span 4;
+}
