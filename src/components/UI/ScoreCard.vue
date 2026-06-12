@@ -13,19 +13,43 @@
       <div class="petal-wrapper">
         <div class="petal tl">
           {{ modelValue["Biodiversity"] }}
-          <q-tooltip anchor="center left" self="center right">Biodiversity</q-tooltip>
+          <q-tooltip
+            class="bg-white text-black shadow-2"
+            style="border: 1px solid black"
+            anchor="center left"
+            self="center right"
+            >Biodiversity</q-tooltip
+          >
         </div>
         <div class="petal tr">
           {{ modelValue["Climate"] }}
-          <q-tooltip anchor="center right" self="center left">Climate</q-tooltip>
+          <q-tooltip
+            class="bg-white text-black shadow-2"
+            style="border: 1px solid black"
+            anchor="center right"
+            self="center left"
+            >Climate</q-tooltip
+          >
         </div>
         <div class="petal bl">
           {{ modelValue["Social Justice"] }}
-          <q-tooltip anchor="center left" self="center right">Social Justice</q-tooltip>
+          <q-tooltip
+            class="bg-white text-black shadow-2"
+            style="border: 1px solid black"
+            anchor="center left"
+            self="center right"
+            >Social Justice</q-tooltip
+          >
         </div>
         <div class="petal br">
           {{ modelValue["Transformative Potential"] }}
-          <q-tooltip anchor="center right" self="center left">Transformative Potential</q-tooltip>
+          <q-tooltip
+            class="bg-white text-black shadow-2"
+            style="border: 1px solid black"
+            anchor="center right"
+            self="center left"
+            >Transformative Potential</q-tooltip
+          >
         </div>
 
         <div class="center"></div>
