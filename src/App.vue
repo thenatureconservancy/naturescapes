@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <ThePrimaryNavigation />
+    <!-- <ThePrimaryNavigation /> -->
 
     <router-view v-slot="{ Component }">
       <keep-alive include="MapView">

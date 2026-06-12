@@ -1,7 +1,14 @@
 <template>
-  <div class="q-pt-sm q-px-sm q-ml-sm" style="background-color: #fdf6f2; height: 100%; width: 100%">
-    <div class="q-ma-md" style="display: flex">
-      <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2>
+  <div class="q-pt-sm q-pl-md q-pr-xs" style="background-color: #f7f6f7; height: 100%; width: 100%">
+    <div class="q-mb-md" style="display: flex">
+      <!-- <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2> -->
+      <q-img
+        class="logo-image q-my-sm"
+        fit="contain"
+        src="/banner.png"
+        alt="Naturescapes Logo"
+        style="height: 100px; width: 100%"
+      />
       <IconButton type="info" method="showInfo" @showInfo="showInfo" />
     </div>
     <q-separator class="q-mt-md" />
@@ -17,8 +24,14 @@
             areas.
             <br />
             <br />
-            The database includes the profile of 390 NBS sites over 30 Functional Urban Areas.
-            Available both as a stand-alone database and through the Urban Nature Atlas
+            The database includes the profile of 390 NBS sites over 30 Functional Urban Areas and is
+            available both as a stand-alone database and through the
+            <a href="https://una.city/" target="_blank">Urban Nature Atlas</a>.
+            <br />
+            <br />
+            <a href="/scorecard_purpose_draft_methodology.pdf" target="_blank"
+              >Brief on Scorecard Purpose and Draft Methodology</a
+            >
           </div>
           <q-separator class="q-my-md" />
         </div>
@@ -30,7 +43,7 @@
               outlined
               dense
               standout
-              placeholder="Search keyword(s)"
+              placeholder="Filter by keyword(s)"
               v-model="mapStore.keywordSearch"
               class="bg-white"
             />
@@ -38,30 +51,46 @@
         </div>
         <div class="search-btn-wrap">
           <q-btn
-            color="primary"
+            text-color="dark-grey"
+            class="q-mr-sm"
+            style="background-color: #f6f2c0"
             icon="tune"
             round
             outlined
+            flat
             @click="mapStore.resultsPanelOpen = !mapStore.resultsPanelOpen"
-          ></q-btn>
+            ><q-tooltip
+              class="bg-white text-body2 text-black shadow-2"
+              style="border: 1px solid grey"
+              anchor="center right"
+              self="center start"
+              >Advanced Filters</q-tooltip
+            ></q-btn
+          >
         </div>
         <div class="cards-wrap">
           <div class="card-grid" :class="{ 'is-expanded': mapStore.sidePanelExpanded }">
             <ScoreCard v-for="(card, i) in filteredProjects" :key="i" :model-value="card" />
           </div>
         </div>
+        <!-- <q-img src="/dragonfly_logo.jpg" height="25px" /> -->
       </div>
       <div v-if="mapStore.selectedProject" id="selected-project-info">
         <div>
           <q-btn
+            class="q-ml-xs"
             icon="arrow_back"
             round
-            color="primary"
+            flat
+            text-color="dark-grey"
+            style="background-color: #f6f2c0"
             @click="
               mapStore.selectedProject = null;
               mapStore.selectedFeature = null;
             "
-          ></q-btn>
+          >
+            <q-tooltip>Back</q-tooltip></q-btn
+          >
           <h5 class="text-center q-my-sm">{{ mapStore.selectedProject.name }}</h5>
           <div class="text-center q-my-sm" v-if="mapStore.selectedProject.nativeName !== 'NA'">
             ({{ mapStore.selectedProject.nativeName }})
@@ -91,7 +120,7 @@
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
-                  color="primary"
+                  style="color: #84cc5c"
                   track-color="grey-5"
                   class="q-ma-md"
                 >
@@ -108,7 +137,7 @@
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
-                  color="primary"
+                  style="color: #ef7d69"
                   track-color="grey-5"
                   class="q-ma-md"
                 >
@@ -124,7 +153,7 @@
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
-                  color="primary"
+                  style="color: #76c0e7"
                   track-color="grey-5"
                   class="q-ma-md"
                 >
@@ -140,7 +169,7 @@
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
-                  color="primary"
+                  style="color: #ead755"
                   track-color="grey-5"
                   class="q-ma-md"
                 >
@@ -148,7 +177,128 @@
                 </q-circular-progress>
               </div>
             </div>
-            <div class="q-px-lg">
+
+            <table style="border-collapse: collapse; width: 100%">
+              <th>
+                <tr>
+                  Biodiversity
+                </tr>
+              </th>
+              <tr>
+                <th :style="cellStyle">Protected<br />Areas</th>
+                <th :style="cellStyle">Coastal<br />Habitats</th>
+                <th :style="cellStyle">Fraction of<br />Natural Area</th>
+                <th :style="cellStyle">Ambition and<br />performance</th>
+              </tr>
+              <tr>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.biodiversity.protectedAreas }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.biodiversity.coastalHabitats }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.biodiversity.fractionNaturalArea }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.biodiversity.ambitionPerformance }}
+                </td>
+              </tr>
+            </table>
+            <br />
+            <table style="border-collapse: collapse; width: 100%">
+              <th>
+                <tr>
+                  Climate
+                </tr>
+              </th>
+              <tr>
+                <th :style="cellStyle">Land Surface<br />Temperature</th>
+                <th :style="cellStyle">Carbon<br />Storage</th>
+                <th :style="cellStyle">Stormwater Holding<br />Capacity</th>
+                <th :style="cellStyle">Ambition and<br />performance</th>
+              </tr>
+              <tr>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.climate.landSurfaceTemp }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.climate.carbonStorage }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.climate.stormwaterHoldingCapacity }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.climate.ambitionPerformance }}
+                </td>
+              </tr>
+            </table>
+            <br />
+
+            <table style="border-collapse: collapse; width: 100%">
+              <th>
+                <tr>
+                  Social Justice
+                </tr>
+              </th>
+              <tr>
+                <th :style="cellStyle">Population Access<br />to Blue and Green<br />Spaces</th>
+                <th :style="cellStyle">Recreation Potential<br />Within and Without<br />NBS</th>
+                <th :style="cellStyle">Inclusiveness<br />of<br />Project Beneficiaries</th>
+                <th :style="cellStyle">Ambition<br />and<br />performance</th>
+              </tr>
+              <tr>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.socialJustice.blueGreenSpace }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.socialJustice.recreationPotential }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.socialJustice.inclusiveness }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.socialJustice.ambitionPerformance }}
+                </td>
+              </tr>
+            </table>
+            <br />
+
+            <table style="border-collapse: collapse; width: 100%">
+              <th>
+                <tr>
+                  Transformative Potential
+                </tr>
+              </th>
+              <tr>
+                <th :style="cellStyle">
+                  Potential for<br />High Quality<br />Project Result Delivery
+                </th>
+                <th :style="cellStyle">Long-term<br />Perspective</th>
+                <th :style="cellStyle">Diversity of<br />Stakeholder<br />Involvement</th>
+                <th :style="cellStyle">
+                  Alignment of NBS Targets<br />with Climate, Biodiversity,<br />and Social
+                  Objectives
+                </th>
+              </tr>
+              <tr>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.transformativePotential.resultDelivery }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.transformativePotential.longTermPerspective }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.transformativePotential.diversity }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.selectedProject.transformativePotential.targetAlignment }}
+                </td>
+              </tr>
+            </table>
+            <br />
+
+            <!-- <div class="q-px-lg">
               Biodiversity Indicators:
               <q-list separator class="q-py-xs">
                 <q-item dense class="q-py-sm metric-row">
@@ -340,6 +490,18 @@
                   </q-item-section>
                 </q-item>
               </q-list>
+            </div> -->
+
+            <div class="text-center">
+              <q-img class="dragonfly-logo" src="/dragonfly_logo.svg"></q-img>
+            </div>
+
+            <div class="wave-container">
+              <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
+                <path
+                  d="M0,40 C240,80 480,0 720,30 C960,60 1200,20 1440,40 L1440,100 L0,100 Z"
+                ></path>
+              </svg>
             </div>
           </div>
         </div>
@@ -358,19 +520,35 @@ const filteredProjects = ref([]);
 
 const MAX_SCORE = 16;
 
+const cellStyle = {
+  border: "1px solid darkgrey",
+  padding: "5px 5px",
+  textAlign: "center",
+  backgroundColor: "#f7f6f7",
+};
+
 function showInfo() {
   mapStore.showSummaryInfo = !mapStore.showSummaryInfo;
 }
 
 function applyKeywordFilter() {
+  const visibleIds = mapStore.visibleProjectIds;
+  const visibleIdSet = visibleIds ? new Set(visibleIds) : null;
+  const baseProjects = visibleIdSet
+    ? mapStore.allProjects.filter((project) => {
+        const projectId = Number(project.ID ?? project.id);
+        return Number.isFinite(projectId) && visibleIdSet.has(projectId);
+      })
+    : mapStore.allProjects;
+
   const keywordSearch = (mapStore.keywordSearch ?? "").trim().toLowerCase();
 
   if (!keywordSearch) {
-    filteredProjects.value = mapStore.allProjects;
+    filteredProjects.value = baseProjects;
     return;
   }
 
-  filteredProjects.value = mapStore.allProjects.filter(
+  filteredProjects.value = baseProjects.filter(
     (project) =>
       // Substring match: show card when name, description, or city/FUA contains the search text.
       String(project["Name (short English title)"] ?? project.name ?? "")
@@ -395,6 +573,14 @@ watch(
 
 watch(
   () => mapStore.allProjects,
+  () => {
+    applyKeywordFilter();
+  },
+  { immediate: true, deep: true },
+);
+
+watch(
+  () => mapStore.visibleProjectIds,
   () => {
     applyKeywordFilter();
   },
@@ -551,5 +737,17 @@ label {
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+.wave-container svg {
+  display: block;
+  width: 100%;
+  height: 70px;
+  fill: #d9c44d;
+}
+
+.dragonfly-logo {
+  width: min(80px, 60%);
+  margin: 15px auto;
 }
 </style>

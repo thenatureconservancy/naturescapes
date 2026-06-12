@@ -57,26 +57,6 @@
     <div>
       <div class="q-my-md">Filter by Location</div>
       <div class="q-mt-sm row" style="display: flex">
-        <!-- <div class="col">
-          <q-input
-            outlined
-            dense
-            v-model="mapStore.filterLocation"
-            label="Search for a place..."
-            class="bg-white"
-          />
-        </div>
-        <div class="col-2">
-          <q-btn
-            round
-            icon="search"
-            size="md"
-            color="primary"
-            outlined
-            style="margin: auto"
-            @click="locationSearch(mapStore.filterLocation)"
-          ></q-btn>
-        </div> -->
         <div
           class="col q-mr-md q-ml-xs"
           id="search-location"
@@ -99,7 +79,7 @@
             'Asia',
             'Europe',
             'Latin America and the Caribbean',
-            'Norrthern America',
+            'Northern America',
           ]"
         />
       </div>
@@ -125,11 +105,11 @@
             'Colombo',
             'Detroit',
             'Dublin',
-            'El Alto [La Paz]',
+            'La Paz',
             'Fort-de-France',
             'Gdansk',
             'Gothenburg',
-            'Iași',
+            'Iaşi',
             'Kunming',
             'Lima',
             'Lisbon',
@@ -330,7 +310,14 @@
     </div>
 
     <div class="results-panel__actions">
-      <q-btn color="primary" label="Reset Filters" class="results-panel__reset-btn"></q-btn>
+      <q-btn
+        text-color="dark-grey"
+        flat
+        label="Reset Filters"
+        class="results-panel__reset-btn"
+        style="background-color: #f6f2c0"
+        @click="mapStore.resetFilters"
+      ></q-btn>
     </div>
   </div>
 </template>

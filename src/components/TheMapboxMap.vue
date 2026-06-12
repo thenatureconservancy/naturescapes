@@ -9,14 +9,22 @@
         dense
         icon="layers"
         @click="mapStore.displayBasemaps = !mapStore.displayBasemaps"
-      />
+      >
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="center right"
+          self="center start"
+          >Basemaps</q-tooltip
+        >
+      </q-btn>
     </div>
 
     <transition name="basemap-slide">
       <div
         v-if="mapStore.displayBasemaps"
         class="basemap-panel q-px-md q-py-sm"
-        style="background-color: #f7f7f7"
+        style="background-color: #f7f6f7"
       >
         <q-list>
           <q-item clickable v-ripple @click="mapStore.basemapOption = 'standard'">
@@ -66,7 +74,15 @@
         dense
         icon="home"
         @click="mapStore.map?.flyTo({ center: [10.099215, 51.249358], zoom: 2.2 })"
-      />
+      >
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="center right"
+          self="center start"
+          >Reset zoom</q-tooltip
+        ></q-btn
+      >
     </div>
 
     <div class="mapboxgl-ctrl mapboxgl-ctrl-group custom-control">
@@ -78,7 +94,16 @@
           mapStore.sidePanelExpanded ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right'
         "
         @click="mapStore.sidePanelExpanded = !mapStore.sidePanelExpanded"
-      />
+      >
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="center right"
+          self="center start"
+        >
+          Expand or contract side panel
+        </q-tooltip></q-btn
+      >
     </div>
   </div>
 
@@ -145,7 +170,7 @@ div#map {
   bottom: 0;
   height: 100%;
   width: 100%;
-  background: #fdf6f2 !important;
+  background: #f7f6f7 !important;
   color: #ccc;
   /* border-radius: 20px; */
 }

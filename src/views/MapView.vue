@@ -34,7 +34,7 @@ const mapStore = useMapStore();
   display: flex;
   width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .column-map {
@@ -95,7 +95,7 @@ const mapStore = useMapStore();
   position: relative;
   width: 100%;
   min-width: 0;
-  height: calc(100vh - 50px);
+  height: 100vh;
 }
 
 /* ─── Mobile layout: map on top, info below ────── */

@@ -1,6 +1,13 @@
 <template>
   <nav class="primary-navigation shadow-3">
-    <h1>Naturescapes</h1>
+    <q-img
+      class="q-mr-md"
+      src="/banner_logo.svg"
+      alt="Naturescapes Logo"
+      height="40px"
+      width="300px"
+    />
+    <!-- <h1>Naturescapes</h1> -->
     <ul>
       <!-- <li><RouterLink to="/">Home</RouterLink></li> -->
       <li><RouterLink to="/map">Map</RouterLink></li>
@@ -15,7 +22,7 @@ import { RouterLink } from "vue-router";
 
 <style scoped>
 .primary-navigation {
-  background-color: #ea631c;
+  /* background-color: white; */
   padding: 1rem;
   width: 100%;
   display: flex;
@@ -28,7 +35,7 @@ import { RouterLink } from "vue-router";
 
 h1 {
   display: inline-block;
-  color: white;
+  /* color: white; */
   margin: 0;
   margin-right: 2rem;
   font-size: 20px;

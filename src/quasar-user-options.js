@@ -8,7 +8,7 @@ export default {
   config: {
     animations: "all",
     brand: {
-      primary: "#ea631c",
+      primary: "#ead755",
       secondary: "#fdf6f2",
       accent: "#009688",
       dark: "#1a1a1a",

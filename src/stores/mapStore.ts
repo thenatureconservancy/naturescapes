@@ -10,8 +10,6 @@ export const useMapStore = defineStore("map", () => {
   const map = ref<mapboxgl.Map | null>(null);
   const mapLoaded = ref(false);
   const zoomLevel = ref<number | null>(null);
-  const refHubBasemapStyle = "mapbox://styles/tncmapbox/clms1lrtx056u01p91cfy6hqr"; // global
-  const healthyRenewablesStyle = "mapbox://styles/tncmapbox/cmj0inecz00cm01qif9zd7tqf"; // US only
   const conusBbox: [number, number, number, number] = [-124.98044, 26.64984, -75.24436, 48.59458];
   const globalBbox: [number, number, number, number] = [-180, -90, 180, 90];
   const selectedFeature = ref<{
@@ -22,13 +20,15 @@ export const useMapStore = defineStore("map", () => {
   const resultsPanelOpen = ref(false);
   const filterDescriptionOpenByKey = reactive<Record<string, boolean>>({});
   const allProjects = ref([]) as unknown as { value: Record<string, string | number>[] };
+  const visibleProjectIds = ref<number[] | null>(null);
+  const focusedProjectId = ref<number | null>(null);
   const allFua = ref([]) as unknown as { value: Record<string, string | number>[] };
   let initialNotify = ref(false);
   let mapTopNotifyEl: HTMLDivElement | null = null;
   let mapTopNotifyMessageEl: HTMLSpanElement | null = null;
   let mapTopNotifyHideTimeout: ReturnType<typeof setTimeout> | null = null;
   let displayBasemaps = ref(false);
-  let basemapOption = ref("standard");
+  let basemapOption = ref("light");
   let sidePanelExpanded = ref(false);
   let showFilterInfo = ref(false);
   let showSummaryInfo = ref(true);
@@ -38,7 +38,79 @@ export const useMapStore = defineStore("map", () => {
   let filterLocation = ref<any>(null);
   let filterRegion = ref([]);
   let filterFUA = ref([]);
+  const indicatorFilterFields = [
+    "Protected Area",
+    "Coastal habitat",
+    "Green/Blue Area Fraction",
+    "Biodiversity-related ambition and performance",
+    "Land surface temperature",
+    "Carbon storage",
+    "Stormwater holding capacity",
+    "Climate-related ambition and performance",
+    "Population access",
+    "Recreation potential",
+    "Inclusiveness of project beneficiaries",
+    "Social justice-related ambition and performance",
+    "Potential for high-quality project result delivery",
+    "Long-term perspective",
+    "Diversity of stakeholder involvement",
+    "Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives",
+  ] as const;
+  const indicatorFilterState = reactive<Record<string, { value: number; active: boolean }>>(
+    Object.fromEntries(
+      indicatorFilterFields.map((field) => [field, { value: 0, active: false }]),
+    ) as Record<string, { value: number; active: boolean }>,
+  );
   let polygonFeatureById: Record<number, { properties: any; geometry: any }> = {};
+  let allPolygonFeatures: any[] = [];
+  let allCentroidFeatures: any[] = [];
+
+  const getIndicatorFilterValue = (field: string) => {
+    return indicatorFilterState[field]?.value ?? 0;
+  };
+
+  const setIndicatorFilterValue = (field: string, value: number) => {
+    if (!indicatorFilterState[field]) {
+      indicatorFilterState[field] = { value: 0, active: false };
+    }
+
+    indicatorFilterState[field].value = value;
+    indicatorFilterState[field].active = true;
+  };
+
+  const clearIndicatorFilters = () => {
+    Object.keys(indicatorFilterState).forEach((field) => {
+      const state = indicatorFilterState[field];
+      if (!state) return;
+      state.value = 0;
+      state.active = false;
+    });
+  };
+
+  const matchesIndicatorFilters = (project: Record<string, string | number>) => {
+    const activeFilters = Object.entries(indicatorFilterState).filter(([, state]) => state.active);
+    if (activeFilters.length === 0) return true;
+
+    for (const [field, state] of activeFilters) {
+      const rawValue = String(project[field] ?? "").trim();
+
+      if (state.value === 0) {
+        const isNaValue = rawValue === "" || /^(na|n\/a)$/i.test(rawValue) || rawValue === "0";
+        const numericValue = Number(rawValue);
+        const isLowValue = Number.isFinite(numericValue) && numericValue <= 4;
+
+        if (!isNaValue && !isLowValue) return false;
+        continue;
+      }
+
+      const numericValue = Number(rawValue);
+      if (!Number.isFinite(numericValue) || numericValue > state.value) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const hideMapTopNotify = () => {
     if (!mapTopNotifyEl) return;
@@ -52,6 +124,10 @@ export const useMapStore = defineStore("map", () => {
   };
 
   watch(selectedFeature, (feature) => {
+    focusedProjectId.value = feature ? getNumericProjectId(feature.properties) : null;
+    applyFeatureVisibilityMode();
+    syncVisibleProjectsFromMap();
+
     syncSelectedFeatureHighlight(feature);
 
     if (feature) {
@@ -102,6 +178,85 @@ export const useMapStore = defineStore("map", () => {
       initialNotify.value = true;
     }
   });
+
+  const applyCombinedFilters = () => {
+    const mapInstance = map.value;
+    if (!mapInstance) return;
+
+    const selectedRegions = filterRegion.value as string[];
+    const selectedFua = filterFUA.value as string[];
+    const hasRegionFilter = selectedRegions.length > 0;
+    const hasFuaFilter = selectedFua.length > 0;
+    const hasIndicatorFilter = Object.values(indicatorFilterState).some((state) => state.active);
+
+    let matchingIds: Set<number> | null = null;
+    if (hasRegionFilter || hasFuaFilter || hasIndicatorFilter) {
+      matchingIds = new Set(
+        allProjects.value
+          .filter((p: any) => {
+            const regionMatches = !hasRegionFilter || selectedRegions.includes(String(p.Region));
+            const fuaRawValue = String(p["City or FUA"] ?? "").trim();
+            const fuaWithoutSuffix = fuaRawValue.replace(/\s*\(FUA\)\s*$/i, "").trim();
+            const fuaMatches =
+              !hasFuaFilter ||
+              selectedFua.some((selected: string) => {
+                const selectedTrimmed = String(selected).trim();
+                return (
+                  selectedTrimmed === fuaRawValue ||
+                  selectedTrimmed === fuaWithoutSuffix ||
+                  `${selectedTrimmed} (FUA)` === fuaRawValue
+                );
+              });
+            const indicatorMatches = matchesIndicatorFilters(p);
+            return regionMatches && fuaMatches && indicatorMatches;
+          })
+          .map((p: any) => Number(p.ID))
+          .filter((id: number) => Number.isFinite(id)),
+      );
+    }
+
+    const filteredPolygonFeatures = matchingIds
+      ? allPolygonFeatures.filter((f: any) => matchingIds!.has(Number(f?.properties?.ID)))
+      : allPolygonFeatures;
+
+    const filteredCentroidFeatures = matchingIds
+      ? allCentroidFeatures.filter((f: any) => matchingIds!.has(Number(f?.properties?.ID)))
+      : allCentroidFeatures;
+
+    const polygonSource = mapInstance.getSource("nbs-polygons") as
+      | mapboxgl.GeoJSONSource
+      | undefined;
+    if (polygonSource) {
+      polygonSource.setData({
+        type: "FeatureCollection",
+        features: filteredPolygonFeatures,
+      });
+    }
+
+    const centroidSource = mapInstance.getSource("nbs-centroids") as
+      | mapboxgl.GeoJSONSource
+      | undefined;
+    if (centroidSource) {
+      centroidSource.setData({
+        type: "FeatureCollection",
+        features: filteredCentroidFeatures,
+      });
+    }
+
+    syncVisibleProjectsFromMap();
+  };
+
+  watch([filterRegion, filterFUA], applyCombinedFilters, { deep: true });
+  watch(indicatorFilterState, applyCombinedFilters, { deep: true });
+  watch(allProjects, applyCombinedFilters, { deep: true });
+
+  const resetFilters = () => {
+    filterRegion.value = [];
+    filterFUA.value = [];
+    filterLocation.value = null;
+    clearIndicatorFilters();
+    applyCombinedFilters();
+  };
 
   watch(filterLocation, (newLocation) => {
     console.log("Filter location changed to:", newLocation);
@@ -157,9 +312,164 @@ export const useMapStore = defineStore("map", () => {
     imagery: "mapbox://styles/mapbox/satellite-streets-v12",
   };
 
+  const getNumericProjectId = (
+    properties: Record<string, unknown> | mapboxgl.GeoJSONFeature["properties"] | undefined,
+  ) => {
+    if (!properties) return null;
+    const rawId =
+      (properties as Record<string, unknown>).ID ?? (properties as Record<string, unknown>).id;
+    const parsedId = Number(rawId);
+    return Number.isFinite(parsedId) ? parsedId : null;
+  };
+
+  const getClusterLeafProjectIds = async (clusterId: number) => {
+    const mapInstance = map.value;
+    if (!mapInstance) return [] as number[];
+
+    const source = mapInstance.getSource("nbs-centroids") as
+      | (mapboxgl.GeoJSONSource & {
+          getClusterLeaves?: (
+            clusterId: number,
+            limit: number,
+            offset: number,
+            callback: (error: Error | null, features?: mapboxgl.MapboxGeoJSONFeature[]) => void,
+          ) => void;
+        })
+      | undefined;
+
+    if (!source?.getClusterLeaves) return [] as number[];
+
+    const pageSize = 100;
+    const leafIds: number[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await new Promise<Array<{ properties?: Record<string, unknown> }>>((resolve) => {
+        source.getClusterLeaves?.(clusterId, pageSize, offset, (error, features = []) => {
+          if (error) {
+            console.error("Failed to read cluster leaves", error);
+            resolve([]);
+            return;
+          }
+          resolve((features as Array<{ properties?: Record<string, unknown> }>) ?? []);
+        });
+      });
+
+      if (page.length === 0) break;
+
+      page.forEach((feature) => {
+        const id = getNumericProjectId(feature.properties);
+        if (id !== null) {
+          leafIds.push(id);
+        }
+      });
+
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    return leafIds;
+  };
+
+  const syncVisibleProjectsFromMap = async () => {
+    const mapInstance = map.value;
+    if (!mapInstance) {
+      visibleProjectIds.value = null;
+      return;
+    }
+
+    const idSet = new Set<number>();
+    const zoom = mapInstance.getZoom();
+
+    if (zoom >= 10 && mapInstance.getLayer("nbs-polygons-fill")) {
+      const polygonFeatures = mapInstance.queryRenderedFeatures({
+        layers: ["nbs-polygons-fill"],
+      });
+
+      polygonFeatures.forEach((feature) => {
+        const id = getNumericProjectId(feature.properties);
+        if (id !== null) {
+          idSet.add(id);
+        }
+      });
+    } else {
+      if (mapInstance.getLayer("unclustered-points")) {
+        const pointFeatures = mapInstance.queryRenderedFeatures({
+          layers: ["unclustered-points"],
+        });
+
+        pointFeatures.forEach((feature) => {
+          const id = getNumericProjectId(feature.properties);
+          if (id !== null) {
+            idSet.add(id);
+          }
+        });
+      }
+
+      if (mapInstance.getLayer("clusters")) {
+        const clusterFeatures = mapInstance.queryRenderedFeatures({
+          layers: ["clusters"],
+        });
+
+        for (const feature of clusterFeatures) {
+          const clusterId = Number(feature.properties?.cluster_id);
+          if (!Number.isFinite(clusterId)) continue;
+
+          const clusterLeafIds = await getClusterLeafProjectIds(clusterId);
+          clusterLeafIds.forEach((id) => idSet.add(id));
+        }
+      }
+    }
+
+    visibleProjectIds.value = Array.from(idSet);
+  };
+
   const setLayerVisibility = (layerId: string, visible: boolean) => {
     if (!map.value?.getLayer(layerId)) return;
     map.value.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+  };
+
+  const setProjectFilters = (projectId: number | null) => {
+    if (!map.value) return;
+
+    if (map.value.getLayer("nbs-polygons-fill")) {
+      map.value.setFilter(
+        "nbs-polygons-fill",
+        projectId === null ? null : ["==", ["to-number", ["get", "ID"]], projectId],
+      );
+    }
+
+    if (map.value.getLayer("unclustered-points")) {
+      map.value.setFilter(
+        "unclustered-points",
+        projectId === null
+          ? ["!", ["has", "point_count"]]
+          : ["all", ["!", ["has", "point_count"]], ["==", ["to-number", ["get", "ID"]], projectId]],
+      );
+    }
+  };
+
+  const applyFeatureVisibilityMode = () => {
+    if (!map.value) return;
+
+    const isFocusedMode = focusedProjectId.value !== null;
+    const isPolygonMode = (zoomLevel.value ?? map.value.getZoom()) >= 10;
+
+    if (isFocusedMode) {
+      // Keep only the selected project visible while in project-details mode.
+      setProjectFilters(focusedProjectId.value);
+      setLayerVisibility("clusters", false);
+      setLayerVisibility("cluster-count", false);
+      setLayerVisibility("nbs-polygons-fill", isPolygonMode);
+      setLayerVisibility("unclustered-points", !isPolygonMode);
+      return;
+    }
+
+    setProjectFilters(null);
+    setLayerVisibility("clusters", !isPolygonMode);
+    setLayerVisibility("cluster-count", !isPolygonMode);
+    setLayerVisibility("unclustered-points", !isPolygonMode);
+    setLayerVisibility("nbs-polygons-fill", isPolygonMode);
   };
 
   const getEmptyFeatureCollection = () => {
@@ -185,7 +495,7 @@ export const useMapStore = defineStore("map", () => {
         type: "fill",
         source: "selected-feature",
         paint: {
-          "fill-color": "#ffd166",
+          "fill-color": "#f6f2c0",
           "fill-opacity": 0.38,
         },
       });
@@ -197,7 +507,7 @@ export const useMapStore = defineStore("map", () => {
         type: "line",
         source: "selected-feature",
         paint: {
-          "line-color": "#ffea00",
+          "line-color": "#ead755",
           "line-width": 3,
           "line-opacity": 0.95,
         },
@@ -248,10 +558,10 @@ export const useMapStore = defineStore("map", () => {
 
   const applyMapFog = (mapInstance: any) => {
     mapInstance.setFog({
-      "space-color": "#fdf6f2",
+      "space-color": "#f7f6f7",
       "star-intensity": 0,
-      color: "#fdf6f2",
-      "high-color": "#fdf6f2",
+      color: "#f7f6f7",
+      "high-color": "#f7f6f7",
       "horizon-blend": 0.05,
     });
   };
@@ -280,13 +590,10 @@ export const useMapStore = defineStore("map", () => {
 
     mapInstance.once("style.load", async () => {
       await addNBSLayer();
-
       const currentZoom = mapInstance.getZoom();
-      const isPolygonMode = currentZoom >= 10;
-      setLayerVisibility("clusters", !isPolygonMode);
-      setLayerVisibility("cluster-count", !isPolygonMode);
-      setLayerVisibility("unclustered-points", !isPolygonMode);
-      setLayerVisibility("nbs-polygons-fill", isPolygonMode);
+      zoomLevel.value = currentZoom;
+      applyFeatureVisibilityMode();
+      await syncVisibleProjectsFromMap();
 
       addPolygonClickInteraction(mapInstance);
     });
@@ -306,7 +613,7 @@ export const useMapStore = defineStore("map", () => {
       const mapInstance = markRaw(
         new mapboxgl.Map({
           container: "map",
-          style: "mapbox://styles/mapbox/standard",
+          style: "mapbox://styles/mapbox/light-v11",
           bounds: conusBbox,
           projection: "globe", // mercator, globe, naturalEarth, equalEarth, winkelTripel, albers, lambertConformalConic, equirectangular
           logoPosition: "bottom-right",
@@ -335,8 +642,8 @@ export const useMapStore = defineStore("map", () => {
           notifyEl.style.zIndex = "2";
           notifyEl.style.padding = "12px";
           notifyEl.style.borderRadius = "6px";
-          notifyEl.style.background = "#ea631c";
-          notifyEl.style.color = "#ffffff";
+          notifyEl.style.background = "#f6f2c0";
+          notifyEl.style.color = "black";
           notifyEl.style.fontSize = "18px";
           notifyEl.style.fontWeight = "400";
           notifyEl.style.boxShadow = "0 4px 14px rgba(0, 0, 0, 0.2)";
@@ -358,7 +665,7 @@ export const useMapStore = defineStore("map", () => {
           closeBtn.setAttribute("aria-label", "Close notification");
           closeBtn.style.border = "none";
           closeBtn.style.background = "transparent";
-          closeBtn.style.color = "#ffffff";
+          closeBtn.style.color = "black";
           closeBtn.style.cursor = "pointer";
           closeBtn.style.fontSize = "22px";
           closeBtn.style.lineHeight = "1";
@@ -400,28 +707,25 @@ export const useMapStore = defineStore("map", () => {
 
         mapInstance.on("zoom", () => {
           zoomLevel.value = mapInstance.getZoom();
+          applyFeatureVisibilityMode();
           // console.log("Zoom level:", zoomLevel.value);
           if (zoomLevel.value >= 10) {
-            setLayerVisibility("clusters", false);
-            setLayerVisibility("cluster-count", false);
-            setLayerVisibility("unclustered-points", false);
-            setLayerVisibility("nbs-polygons-fill", true);
-
             if (!initialNotify.value && !selectedFeature.value) {
               showMapTopNotify("Click on a polygon to see project details");
               initialNotify.value = true;
             }
           } else {
-            setLayerVisibility("clusters", true);
-            setLayerVisibility("cluster-count", true);
-            setLayerVisibility("unclustered-points", true);
-            setLayerVisibility("nbs-polygons-fill", false);
-
             if (initialNotify.value) {
               hideMapTopNotify();
               initialNotify.value = false;
             }
           }
+
+          syncVisibleProjectsFromMap();
+        });
+
+        mapInstance.on("moveend", () => {
+          syncVisibleProjectsFromMap();
         });
 
         applyMapFog(mapInstance);
@@ -432,6 +736,8 @@ export const useMapStore = defineStore("map", () => {
         addNBSLayer();
         zoomToGlobal();
         getAllProjects();
+        applyFeatureVisibilityMode();
+        syncVisibleProjectsFromMap();
 
         addPolygonClickInteraction(mapInstance);
       });
@@ -489,6 +795,7 @@ export const useMapStore = defineStore("map", () => {
     }
 
     // 2. Add polygon source
+    allPolygonFeatures = polygonGeojson.features;
     map.value.addSource("nbs-polygons", {
       type: "geojson",
       data: polygonGeojson,
@@ -496,8 +803,8 @@ export const useMapStore = defineStore("map", () => {
 
     // 3. Convert polygons → centroid points
     const centroidGeojson = {
-      type: "FeatureCollection",
-      features: polygonGeojson.features.map((f) => {
+      type: "FeatureCollection" as const,
+      features: polygonGeojson.features.map((f: any) => {
         const pt = turf.centerOfMass(f);
 
         return {
@@ -509,6 +816,7 @@ export const useMapStore = defineStore("map", () => {
         };
       }),
     };
+    allCentroidFeatures = centroidGeojson.features;
 
     // 4. Add clustered point source
     map.value.addSource("nbs-centroids", {
@@ -526,7 +834,7 @@ export const useMapStore = defineStore("map", () => {
       source: "nbs-centroids",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#f2b500",
+        "circle-color": "#ead755",
         "circle-radius": ["step", ["get", "point_count"], 15, 10, 20, 50, 30],
       },
     });
@@ -553,7 +861,7 @@ export const useMapStore = defineStore("map", () => {
       source: "nbs-centroids",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": "#f28cb1",
+        "circle-color": "#ead755",
         "circle-radius": 6,
       },
     });
@@ -565,10 +873,13 @@ export const useMapStore = defineStore("map", () => {
       source: "nbs-polygons",
       minzoom: 10,
       paint: {
-        "fill-color": "#ea631c",
-        "fill-opacity": 0.5,
+        "fill-color": "#ead755",
+        "fill-opacity": 0.7,
       },
     });
+
+    // Re-apply current location/indicator filters after sources/layers are ready.
+    applyCombinedFilters();
 
     syncSelectedFeatureHighlight(selectedFeature.value);
   };
@@ -877,6 +1188,8 @@ export const useMapStore = defineStore("map", () => {
     };
   };
 
+  const selectFuaFromRecord = (fua: Record<string, string | number>) => {};
+
   const setSelectedFeatureFromProject = (
     project: Record<string, string | number>,
     selectionType = "card",
@@ -893,9 +1206,11 @@ export const useMapStore = defineStore("map", () => {
 
   const lookUpProject = (feat: any) => {
     console.log(feat);
-    console.log(allProjects.value);
+    // console.log(allProjects.value);
     let id;
+    let fua;
     id = Number(feat.properties.ID);
+    fua = feat.properties["City or FUA"];
 
     selectedFeature.value = {
       selection_type: "polygon",
@@ -949,6 +1264,7 @@ export const useMapStore = defineStore("map", () => {
     selectedFeature,
     featureSelected: selectedFeature,
     allProjects,
+    visibleProjectIds,
     resultsPanelOpen,
     filterDescriptionOpenByKey,
     displayBasemaps,
@@ -962,6 +1278,11 @@ export const useMapStore = defineStore("map", () => {
     filterLocation,
     filterRegion,
     filterFUA,
+    indicatorFilterState,
+    getIndicatorFilterValue,
+    setIndicatorFilterValue,
+    clearIndicatorFilters,
+    resetFilters,
     isFilterDescriptionOpen,
     openFilterDescription,
     closeFilterDescription,
