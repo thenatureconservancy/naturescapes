@@ -16,12 +16,12 @@
       <q-slide-transition>
         <div v-show="mapStore.showSummaryInfo">
           <div>
-            Naturescapes provides an overview of the contributions of different NBS within
-            functional urban areas (FUAs) to address sustainability challenges based on a common set
-            of quantitative and qualitative indicators. It serves as a simple starting point for
-            understanding individual NBS impacts and for creating an overview of the possible
-            synergies across NBS and NBS assemblages (naturescapes) in specific thematic domains or
-            areas.
+            <a href="https://www.naturescapes-project.com/" target="_blank">Naturescapes</a>
+            provides an overview of the contributions of different NBS within functional urban areas
+            (FUAs) to address sustainability challenges based on a common set of quantitative and
+            qualitative indicators. It serves as a simple starting point for understanding
+            individual NBS impacts and for creating an overview of the possible synergies across NBS
+            and NBS assemblages (naturescapes) in specific thematic domains or areas.
             <br />
             <br />
             The database includes the profile of 390 NBS sites over 30 Functional Urban Areas and is
