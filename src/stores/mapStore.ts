@@ -3,6 +3,7 @@ import { ref, reactive, computed, watch } from "vue";
 import { markRaw } from "vue";
 import mapboxgl from "mapbox-gl";
 import * as turf from "@turf/turf";
+import pdfMake from "pdfmake/build/pdfmake";
 
 export const useMapStore = defineStore("map", () => {
   const mapboxToken =
@@ -33,11 +34,16 @@ export const useMapStore = defineStore("map", () => {
   let showFilterInfo = ref(false);
   let showSummaryInfo = ref(true);
   let selectedProject = ref<any>(null);
+  let fuaResults = ref<any>(null);
   let keywordSearch = ref<string>("");
   let filterQuery = ref<string>("");
   let filterLocation = ref<any>(null);
   let filterRegion = ref([]);
   let filterFUA = ref([]);
+  let numOfFilters = ref(0);
+  let projectToggleOption = ref("all");
+  let projectCollection = ref([]);
+  let printMap = ref(false);
   const indicatorFilterFields = [
     "Protected Area",
     "Coastal habitat",
@@ -455,20 +461,10 @@ export const useMapStore = defineStore("map", () => {
     const isFocusedMode = focusedProjectId.value !== null;
     const isPolygonMode = (zoomLevel.value ?? map.value.getZoom()) >= 10;
 
-    if (isFocusedMode) {
-      // Keep only the selected project visible while in project-details mode.
-      setProjectFilters(focusedProjectId.value);
-      setLayerVisibility("clusters", false);
-      setLayerVisibility("cluster-count", false);
-      setLayerVisibility("nbs-polygons-fill", isPolygonMode);
-      setLayerVisibility("unclustered-points", !isPolygonMode);
-      return;
-    }
-
     setProjectFilters(null);
-    setLayerVisibility("clusters", !isPolygonMode);
-    setLayerVisibility("cluster-count", !isPolygonMode);
-    setLayerVisibility("unclustered-points", !isPolygonMode);
+    setLayerVisibility("clusters", !isPolygonMode && !isFocusedMode);
+    setLayerVisibility("cluster-count", !isPolygonMode && !isFocusedMode);
+    setLayerVisibility("unclustered-points", !isPolygonMode && !isFocusedMode);
     setLayerVisibility("nbs-polygons-fill", isPolygonMode);
   };
 
@@ -496,7 +492,7 @@ export const useMapStore = defineStore("map", () => {
         source: "selected-feature",
         paint: {
           "fill-color": "#f6f2c0",
-          "fill-opacity": 0.38,
+          "fill-opacity": 0.3,
         },
       });
     }
@@ -507,8 +503,8 @@ export const useMapStore = defineStore("map", () => {
         type: "line",
         source: "selected-feature",
         paint: {
-          "line-color": "#ead755",
-          "line-width": 3,
+          "line-color": "#76e0c7",
+          "line-width": 5,
           "line-opacity": 0.95,
         },
       });
@@ -736,6 +732,7 @@ export const useMapStore = defineStore("map", () => {
         addNBSLayer();
         zoomToGlobal();
         getAllProjects();
+        getAllFua();
         applyFeatureVisibilityMode();
         syncVisibleProjectsFromMap();
 
@@ -914,24 +911,20 @@ export const useMapStore = defineStore("map", () => {
 
           if (char === '"') {
             if (inQuotes && nextChar === '"') {
-              currentRow += '""';
+              currentRow += '"';
               i += 1;
             } else {
               inQuotes = !inQuotes;
               currentRow += char;
             }
-            continue;
-          }
-
-          if (char === "\n" && !inQuotes) {
+          } else if (char === "\n" && !inQuotes) {
             if (currentRow.trim().length > 0) {
               rows.push(currentRow);
             }
             currentRow = "";
-            continue;
+          } else {
+            currentRow += char;
           }
-
-          currentRow += char;
         }
 
         if (currentRow.trim().length > 0) {
@@ -960,11 +953,9 @@ export const useMapStore = defineStore("map", () => {
               i += 1;
             } else {
               inQuotes = !inQuotes;
+              current += char;
             }
-            continue;
-          }
-
-          if (char === "," && !inQuotes) {
+          } else if (char === "," && !inQuotes) {
             values.push(current.trim());
             current = "";
             continue;
@@ -988,25 +979,28 @@ export const useMapStore = defineStore("map", () => {
 
       const idHeader = headers.find((header) => header.trim().toLowerCase() === "id") ?? "ID";
 
-      const projects = rows.slice(1).map((line) => {
-        const rowValues = parseCsvLine(line);
-        const row = headers.reduce(
-          (rowObject, header, index) => {
-            rowObject[header] = rowValues[index] ?? "";
-            return rowObject;
-          },
-          {} as Record<string, string | number>,
-        );
+      const projects = rows
+        .slice(1)
+        .filter((line) => line.trim().length > 0)
+        .map((line) => {
+          const rowValues = parseCsvLine(line);
+          const row = headers.reduce(
+            (rowObject, header, index) => {
+              rowObject[header] = rowValues[index] ?? "";
+              return rowObject;
+            },
+            {} as Record<string, string | number>,
+          );
 
-        if (idHeader in row) {
-          const numericId = Number(String(row[idHeader]).trim());
-          if (Number.isFinite(numericId)) {
-            row[idHeader] = numericId;
+          if (idHeader in row) {
+            const numericId = Number(String(row[idHeader]).trim());
+            if (Number.isFinite(numericId)) {
+              row[idHeader] = numericId;
+            }
           }
-        }
 
-        return row;
-      });
+          return row;
+        });
 
       // console.log("All projects from CSV:", projects);
       allProjects.value = projects;
@@ -1039,24 +1033,20 @@ export const useMapStore = defineStore("map", () => {
 
           if (char === '"') {
             if (inQuotes && nextChar === '"') {
-              currentRow += '""';
+              currentRow += '"';
               i += 1;
             } else {
               inQuotes = !inQuotes;
               currentRow += char;
             }
-            continue;
-          }
-
-          if (char === "\n" && !inQuotes) {
+          } else if (char === "\n" && !inQuotes) {
             if (currentRow.trim().length > 0) {
               rows.push(currentRow);
             }
             currentRow = "";
-            continue;
+          } else {
+            currentRow += char;
           }
-
-          currentRow += char;
         }
 
         if (currentRow.trim().length > 0) {
@@ -1085,11 +1075,9 @@ export const useMapStore = defineStore("map", () => {
               i += 1;
             } else {
               inQuotes = !inQuotes;
+              current += char;
             }
-            continue;
-          }
-
-          if (char === "," && !inQuotes) {
+          } else if (char === "," && !inQuotes) {
             values.push(current.trim());
             current = "";
             continue;
@@ -1113,25 +1101,28 @@ export const useMapStore = defineStore("map", () => {
 
       const idHeader = headers.find((header) => header.trim().toLowerCase() === "id") ?? "ID";
 
-      const projects = rows.slice(1).map((line) => {
-        const rowValues = parseCsvLine(line);
-        const row = headers.reduce(
-          (rowObject, header, index) => {
-            rowObject[header] = rowValues[index] ?? "";
-            return rowObject;
-          },
-          {} as Record<string, string | number>,
-        );
+      const projects = rows
+        .slice(1)
+        .filter((line) => line.trim().length > 0)
+        .map((line) => {
+          const rowValues = parseCsvLine(line);
+          const row = headers.reduce(
+            (rowObject, header, index) => {
+              rowObject[header] = rowValues[index] ?? "";
+              return rowObject;
+            },
+            {} as Record<string, string | number>,
+          );
 
-        if (idHeader in row) {
-          const numericId = Number(String(row[idHeader]).trim());
-          if (Number.isFinite(numericId)) {
-            row[idHeader] = numericId;
+          if (idHeader in row) {
+            const numericId = Number(String(row[idHeader]).trim());
+            if (Number.isFinite(numericId)) {
+              row[idHeader] = numericId;
+            }
           }
-        }
 
-        return row;
-      });
+          return row;
+        });
 
       // console.log("All projects from CSV:", projects);
       allFua.value = projects;
@@ -1186,9 +1177,60 @@ export const useMapStore = defineStore("map", () => {
           project["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"],
       },
     };
+
+    const projectFua = String(project["City or FUA"])
+      .replace(/\s*\(FUA\)\s*$/i, "")
+      .trim();
+    const fuaRecord = allFua.value.find((record) => String(record.FUA).trim() === projectFua);
+
+    if (fuaRecord) {
+      console.log("Found matching FUA record:", fuaRecord);
+      selectFuaFromRecord(fuaRecord);
+    }
   };
 
-  const selectFuaFromRecord = (fua: Record<string, string | number>) => {};
+  const selectFuaFromRecord = (fua: Record<string, string | number>) => {
+    fuaResults.value = {
+      name: fua["City or FUA"],
+      region: fua["Region"],
+      biodiversity: {
+        label: "Biodiversity",
+        // totalScore: fua["Biodiversity"],
+        protectedAreas: fua["Protected Area"],
+        coastalHabitats: fua["Coastal habitat"],
+        fractionNaturalArea: fua["Green/Blue Area"],
+        ambitionPerformance: fua["Biodiversity-related ambition and performance"],
+      },
+      climate: {
+        label: "Climate",
+        // totalScore: fua["Climate"],
+        landSurfaceTemp: fua["Land surface temperature"],
+        carbonStorage: fua["Carbon storage"],
+        stormwaterHoldingCapacity: fua["Stormwater holding capacity"],
+        ambitionPerformance: fua["Climate-related ambition and performance"],
+      },
+      socialJustice: {
+        label: "Social Justice",
+        // totalScore: fua["Social Justice"],
+        blueGreenSpace: fua["Population access"],
+        recreationPotential: fua["Recreation potential"],
+        inclusiveness: fua["Inclusiveness of project beneficiaries"],
+        ambitionPerformance: fua["Social justice-related ambition and performance"],
+      },
+      transformativePotential: {
+        label: "Transformative Potential",
+        // totalScore: fua["Transformative Potential"],
+        resultDelivery: fua["Potential for high-quality project result delivery"],
+        longTermPerspective: fua["Long-term perspective"],
+        diversity: fua["Diversity of stakeholder involvement"],
+        targetAlignment:
+          fua["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"],
+      },
+    };
+
+    console.log("end of fuaresults");
+    console.log(fuaResults.value);
+  };
 
   const setSelectedFeatureFromProject = (
     project: Record<string, string | number>,
@@ -1223,37 +1265,273 @@ export const useMapStore = defineStore("map", () => {
         console.log("Found project:", project);
         // highlight feature on map then open project details
         selectProjectFromRecord(project);
+        // if (project["City or FUA"]) {
+        //   const projectFua = String(project["City or FUA"])
+        //     .replace(/\s*\(FUA\)\s*$/i, "")
+        //     .trim();
+        //   const fuaRecord = allFua.value.find((record) => String(record.FUA).trim() === projectFua);
+
+        //   if (fuaRecord) {
+        //     console.log("Found matching FUA record:", fuaRecord);
+        //     selectFuaFromRecord(fuaRecord);
+        //   }
+        // }
       }
     });
   };
 
-  // const filters = reactive({
-  //   "City or FUA": "ALL",
-  //   "Region": "ALL",
-  //   // Biodiversity
-  //   "Protected Area": "ALL",
-  //   "Coastal habitat": "ALL",
-  //   "Green/Blue Area Fraction": "ALL",
-  //   "Biodiversity-related ambition and performance": "ALL",
-  //   // Climate
-  //   "Land surface temperature": "ALL",
-  //   "Carbon storage": "ALL",
-  //   "Stormwater holding capacity": "ALL",
-  //   "Climate-related ambition and performance": "ALL",
-  //   // Social Justice
-  //   "Population access": "ALL",
-  //   "Recreation potential": "ALL",
-  //   "Inclusiveness of project beneficiaries": "ALL",
-  //   "Social justice-related ambition and performance": "ALL",
-  //   // Transformative Potential
-  //   "Potential for high-quality project result delivery": "ALL",
-  //   "Long-term perspective": "ALL",
-  //   "Diversity of stakeholder involvement": "ALL",
-  //   "Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives": "ALL",
-  // });
-  // const buildFilterQuery = () => {
+  const generatePdf = async () => {
+    // set fonts
+    pdfMake.fonts = {
+      Roboto: {
+        normal:
+          "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf",
+        bold: "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Medium.ttf",
+        italics:
+          "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Italic.ttf",
+        bolditalics:
+          "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-MediumItalic.ttf",
+      },
+    };
 
-  // }
+    let today = new Date();
+    let dateString = today.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const s = (value: any) => (value === undefined || value === null ? "" : String(value));
+
+    const content: any[] = [
+      {
+        text: "Naturescapes Collection",
+        style: ["header1", "centerItem"],
+        margin: [0, 0, 0, 20],
+      },
+    ];
+
+    projectCollection.value.forEach((project) => {
+      // selectProjectFromRecord(project);
+      const selectedProject = {
+        name: project["Name (short English title)"],
+        nativeName: project["Native language title"],
+        cityFUA: project["City or FUA"],
+        region: project["Region"],
+        description: project["Short description of the intervention"],
+        website: project["Website of the intervention"],
+        biodiversity: {
+          label: "Biodiversity",
+          totalScore: project["Biodiversity"],
+          protectedAreas: project["Protected Area"],
+          coastalHabitats: project["Coastal habitat"],
+          fractionNaturalArea: project["Green/Blue Area Fraction"],
+          ambitionPerformance: project["Biodiversity-related ambition and performance"],
+        },
+        climate: {
+          label: "Climate",
+          totalScore: project["Climate"],
+          landSurfaceTemp: project["Land surface temperature"],
+          carbonStorage: project["Carbon storage"],
+          stormwaterHoldingCapacity: project["Stormwater holding capacity"],
+          ambitionPerformance: project["Climate-related ambition and performance"],
+        },
+        socialJustice: {
+          label: "Social Justice",
+          totalScore: project["Social Justice"],
+          blueGreenSpace: project["Population access"],
+          recreationPotential: project["Recreation potential"],
+          inclusiveness: project["Inclusiveness of project beneficiaries"],
+          ambitionPerformance: project["Social justice-related ambition and performance"],
+        },
+        transformativePotential: {
+          label: "Transformative Potential",
+          totalScore: project["Transformative Potential"],
+          resultDelivery: project["Potential for high-quality project result delivery"],
+          longTermPerspective: project["Long-term perspective"],
+          diversity: project["Diversity of stakeholder involvement"],
+          targetAlignment:
+            project["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"],
+        },
+      };
+
+      content.push({
+        text: s(selectedProject.name),
+        style: "header2",
+        margin: [0, 0, 0, 10],
+      });
+
+      // Biodiversity Table
+      content.push({ text: "Biodiversity", style: "header3", margin: [0, 10, 0, 5] });
+      content.push({
+        table: {
+          widths: ["20%", "20%", "20%", "20%", "20%"],
+          body: [
+            [
+              { text: "", style: "tableHeader" },
+              { text: "Protected Areas", style: "tableHeader" },
+              { text: "Coastal Habitats", style: "tableHeader" },
+              { text: "Fraction of Natural Area", style: "tableHeader" },
+              { text: "Ambition and performance", style: "tableHeader" },
+            ],
+            [
+              "Project",
+              s(selectedProject.biodiversity.protectedAreas),
+              s(selectedProject.biodiversity.coastalHabitats),
+              s(selectedProject.biodiversity.fractionNaturalArea),
+              s(selectedProject.biodiversity.ambitionPerformance),
+            ],
+          ],
+        },
+        layout: "lightHorizontalLines",
+        margin: [0, 0, 0, 10],
+      });
+
+      // Climate Table
+      content.push({ text: "Climate", style: "header3", margin: [0, 10, 0, 5] });
+      content.push({
+        table: {
+          widths: ["20%", "20%", "20%", "20%", "20%"],
+          body: [
+            [
+              { text: "", style: "tableHeader" },
+              { text: "Land Surface Temperature", style: "tableHeader" },
+              { text: "Carbon Storage", style: "tableHeader" },
+              { text: "Stormwater Holding Capacity", style: "tableHeader" },
+              { text: "Ambition and performance", style: "tableHeader" },
+            ],
+            [
+              "Project",
+              s(selectedProject.climate.landSurfaceTemp),
+              s(selectedProject.climate.carbonStorage),
+              s(selectedProject.climate.stormwaterHoldingCapacity),
+              s(selectedProject.climate.ambitionPerformance),
+            ],
+          ],
+        },
+        layout: "lightHorizontalLines",
+        margin: [0, 0, 0, 10],
+      });
+
+      // Social Justice Table
+      content.push({ text: "Social Justice", style: "header3", margin: [0, 10, 0, 5] });
+      content.push({
+        table: {
+          widths: ["20%", "20%", "20%", "20%", "20%"],
+          body: [
+            [
+              { text: "", style: "tableHeader" },
+              { text: "Population Access to Blue and Green Spaces", style: "tableHeader" },
+              { text: "Recreation Potential Within and Without NBS", style: "tableHeader" },
+              { text: "Inclusiveness of Project Beneficiaries", style: "tableHeader" },
+              { text: "Ambition and performance", style: "tableHeader" },
+            ],
+            [
+              "Project",
+              s(selectedProject.socialJustice.blueGreenSpace),
+              s(selectedProject.socialJustice.recreationPotential),
+              s(selectedProject.socialJustice.inclusiveness),
+              s(selectedProject.socialJustice.ambitionPerformance),
+            ],
+          ],
+        },
+        layout: "lightHorizontalLines",
+        margin: [0, 0, 0, 10],
+      });
+
+      // Transformative Potential Table
+      content.push({ text: "Transformative Potential", style: "header3", margin: [0, 10, 0, 5] });
+      content.push({
+        table: {
+          widths: ["20%", "20%", "20%", "20%", "20%"],
+          body: [
+            [
+              { text: "", style: "tableHeader" },
+              { text: "Potential for High Quality Project Result Delivery", style: "tableHeader" },
+              { text: "Long-term Perspective", style: "tableHeader" },
+              { text: "Diversity of Stakeholder Involvement", style: "tableHeader" },
+              {
+                text: "Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives",
+                style: "tableHeader",
+              },
+            ],
+            [
+              "Project",
+              s(selectedProject.transformativePotential.resultDelivery),
+              s(selectedProject.transformativePotential.longTermPerspective),
+              s(selectedProject.transformativePotential.diversity),
+              s(selectedProject.transformativePotential.targetAlignment),
+            ],
+          ],
+        },
+        layout: "lightHorizontalLines",
+        margin: [0, 0, 0, 20], // Add more margin after the last table for spacing
+      });
+    });
+
+    let docDefinition = {
+      header: {
+        text: dateString,
+        alignment: "right",
+        margin: [0, 20, 20, 0],
+      },
+      footer: function (currentPage, pageCount) {
+        return {
+          text: "Page " + currentPage.toString() + " of " + pageCount.toString(),
+          alignment: "center",
+          margin: [0, 0, 0, 10],
+        };
+      },
+      content: content,
+      defaultStyle: {
+        fontSize: 11,
+        color: "#374269",
+      },
+      styles: {
+        header1: {
+          bold: true,
+          fontSize: 18,
+        },
+        header1a: {
+          bold: true,
+          fontSize: 16,
+        },
+        header2: {
+          bold: true,
+          fontSize: 14,
+        },
+        header3: {
+          bold: true,
+          fontSize: 12,
+        },
+        header4: {
+          fontSize: 12,
+        },
+        tableHeader: {
+          bold: true,
+          fontSize: 10,
+          color: "black",
+        },
+        anotherStyle: {
+          italics: true,
+          alignment: "right",
+        },
+        boldItem: {
+          bold: true,
+        },
+        centerItem: {
+          alignment: "center",
+        },
+      },
+    };
+    pdfMake.createPdf(docDefinition).download();
+  };
+
+  function goBack() {
+    selectedProject.value = null;
+    selectedFeature.value = null;
+  }
 
   return {
     mapboxToken,
@@ -1279,6 +1557,10 @@ export const useMapStore = defineStore("map", () => {
     filterRegion,
     filterFUA,
     indicatorFilterState,
+    fuaResults,
+    projectToggleOption,
+    projectCollection,
+    numOfFilters,
     getIndicatorFilterValue,
     setIndicatorFilterValue,
     clearIndicatorFilters,
@@ -1296,5 +1578,7 @@ export const useMapStore = defineStore("map", () => {
     // buildFilterQuery,
     allFua,
     getAllFua,
+    goBack,
+    generatePdf,
   };
 });

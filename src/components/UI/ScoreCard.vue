@@ -1,10 +1,5 @@
 <template>
   <q-card class="my-card">
-    <!-- <img
-      v-if="modelValue['Website of the intervention']"
-      :src="modelValue['Website of the intervention']"
-    /> -->
-
     <q-card-section>
       <div class="text-size-lg">{{ modelValue["Name (short English title)"] }}</div>
       <div class="text-subtitle2 q-mt-sm">{{ modelValue["City or FUA"] }}</div>
@@ -59,33 +54,28 @@
       {{ truncatedDescription }}
     </q-card-section>
 
-    <!-- <q-card-section>
-      <div class="row">
-        <div class="col">
-          <q-circular-progress size="md" color="primary" value="40"> </q-circular-progress>
-        </div>
-        <div class="col">
-          <q-circular-progress size="md" color="primary" value="40"> </q-circular-progress>
-        </div>
-        <div class="col">
-          <q-circular-progress size="md" color="primary" value="40"> </q-circular-progress>
-        </div>
-        <div class="col">
-          <q-circular-progress size="md" color="primary" value="40"> </q-circular-progress>
-        </div>
-      </div>
-    </q-card-section> -->
-
-    <div class="q-ma-md website-link">
+    <q-card-actions style="margin-top: auto" align="center">
       <q-btn
         flat
-        stretch
+        round
         text-color="dark-grey"
-        style="background-color: #f6f2c0; border-radius: 4px !important"
+        icon="visibility"
+        style="background-color: #f6f2c0"
         @click="handleViewProjectDetails"
-        >View Project Details</q-btn
-      ><br />
-    </div>
+        ><q-tooltip>View Project Details</q-tooltip></q-btn
+      >
+      <q-btn
+        flat
+        round
+        :icon="mapStore.projectCollection.includes(props.modelValue) ? 'remove' : 'add'"
+        text-color="dark-grey"
+        style="background-color: #f6f2c0"
+        @click="sendToProjectCollection(props.modelValue)"
+      >
+        <q-tooltip v-if="mapStore.projectToggleOption == 'set'">Remove from Collection</q-tooltip
+        ><q-tooltip v-else>Add to Collection</q-tooltip>
+      </q-btn>
+    </q-card-actions>
   </q-card>
 </template>
 
@@ -124,6 +114,14 @@ const handleViewProjectDetails = () => {
   if (element) {
     element.scrollIntoView({ behavior: "smooth" });
   }
+};
+
+const sendToProjectCollection = (project) => {
+  mapStore.projectCollection.includes(project)
+    ? mapStore.projectCollection.splice(mapStore.projectCollection.indexOf(project), 1)
+    : mapStore.projectCollection.push(project);
+
+  console.log(mapStore.projectCollection);
 };
 </script>
 

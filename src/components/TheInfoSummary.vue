@@ -16,17 +16,24 @@
       <q-slide-transition>
         <div v-show="mapStore.showSummaryInfo">
           <div>
-            <a href="https://www.naturescapes-project.com/" target="_blank">Naturescapes</a>
-            provides an overview of the contributions of different NBS within functional urban areas
-            (FUAs) to address sustainability challenges based on a common set of quantitative and
-            qualitative indicators. It serves as a simple starting point for understanding
-            individual NBS impacts and for creating an overview of the possible synergies across NBS
-            and NBS assemblages (naturescapes) in specific thematic domains or areas.
+            The
+            <a href="https://www.naturescapes-project.com/" target="_blank">Naturescapes</a> project
+            provides an overview of the contributions of different nature-based solutions (NBS)
+            within functional urban areas (FUAs) to address sustainability challenges based on a
+            common set of quantitative and qualitative indicators.
             <br />
             <br />
-            The database includes the profile of 390 NBS sites over 30 Functional Urban Areas and is
-            available both as a stand-alone database and through the
-            <a href="https://una.city/" target="_blank">Urban Nature Atlas</a>.
+            It serves as a simple starting point for understanding individual NBS impacts and for
+            creating an overview of the possible synergies across NBS assemblages (naturescapes) in
+            specific thematic domains or areas.
+            <br />
+            <br />
+            The database includes the profile of 390 NBS sites over 30 FUAs and it is available both
+            as a stand-alone database here and through the
+            <a href="https://una.city/front-search/collection_phase/5" target="_blank"
+              >Urban Nature Atlas</a
+            >
+            where more details are available on the individual NBS.
             <br />
             <br />
             <a href="/scorecard_purpose_draft_methodology.pdf" target="_blank"
@@ -36,8 +43,50 @@
           <q-separator class="q-my-md" />
         </div>
       </q-slide-transition>
+      <div
+        v-if="!mapStore.selectedProject"
+        style="
+          width: 100%;
+          display: block;
+          position: sticky;
+          top: 0;
+          z-index: 1;
+          background-color: #f7f6f7;
+          padding: 0px 0px 10px 0px;
+        "
+      >
+        <q-btn-toggle
+          v-model="mapStore.projectToggleOption"
+          spread
+          no-caps
+          unelevated
+          color="white"
+          toggle-color="secondary"
+          text-color="black"
+          toggle-text-color="black"
+          style="border: 1px solid #e0e0e0"
+          :options="[
+            { label: 'All NBS Projects', value: 'all', slot: 'one' },
+            { label: 'Naturescape Collection', value: 'set', slot: 'two' },
+          ]"
+        >
+          <template v-slot:one>
+            <q-chip class="q-ml-sm" outline dense color="grey-6" text-color="white" label="390" />
+          </template>
+          <template v-slot:two>
+            <q-chip
+              class="q-ml-sm"
+              outline
+              dense
+              color="grey-6"
+              text-color="white"
+              :label="mapStore.projectCollection.length.toString()"
+            />
+          </template>
+        </q-btn-toggle>
+      </div>
       <div v-if="!mapStore.selectedProject" class="search-row">
-        <div class="search-inline">
+        <div v-if="mapStore.projectToggleOption == 'all'" class="search-inline">
           <div class="search-input-wrap">
             <q-input
               outlined
@@ -49,7 +98,7 @@
             />
           </div>
         </div>
-        <div class="search-btn-wrap">
+        <div v-if="mapStore.projectToggleOption == 'all'" class="search-btn-wrap q-mt-xs">
           <q-btn
             text-color="dark-grey"
             class="q-mr-sm"
@@ -65,15 +114,62 @@
               anchor="center right"
               self="center start"
               >Advanced Filters</q-tooltip
-            ></q-btn
-          >
+            >
+            <!-- <q-badge
+              v-if="mapStore.filterQuery != ''"
+              floating
+              transparent
+              rounded
+              color="red"
+              :label="mapStore.numOfFilters"
+          /> -->
+          </q-btn>
         </div>
-        <div class="cards-wrap">
+        <div v-if="mapStore.projectToggleOption == 'all'" class="cards-wrap q-pb-xl">
           <div class="card-grid" :class="{ 'is-expanded': mapStore.sidePanelExpanded }">
             <ScoreCard v-for="(card, i) in filteredProjects" :key="i" :model-value="card" />
           </div>
         </div>
-        <!-- <q-img src="/dragonfly_logo.jpg" height="25px" /> -->
+        <div v-else class="cards-wrap q-pb-xl">
+          <div v-if="mapStore.projectCollection.length > 0" class="text-center">
+            <q-btn
+              class="q-mx-md"
+              style="background-color: #f6f2c0"
+              text-color="black"
+              flat
+              round
+              icon="download"
+              @click="mapStore.generatePdf()"
+              ><q-tooltip>Save Collection</q-tooltip></q-btn
+            >
+            <q-btn
+              class="q-mx-md"
+              style="background-color: #f6f2c0"
+              text-color="black"
+              flat
+              round
+              icon="delete_forever"
+              @click="mapStore.projectCollection = []"
+              ><q-tooltip>Clear Collection</q-tooltip></q-btn
+            >
+          </div>
+          <div
+            v-if="mapStore.projectCollection.length > 0"
+            class="card-grid q-mt-sm"
+            :class="{ 'is-expanded': mapStore.sidePanelExpanded }"
+          >
+            <ScoreCard
+              v-for="(card, i) in mapStore.projectCollection"
+              :key="i"
+              :model-value="card"
+            />
+          </div>
+          <div v-else class="text-center" style="color: red">
+            <span class="material-icons-outlined"> announcement </span>
+            <br />
+            There are currently no projects added to your collection.
+          </div>
+        </div>
       </div>
       <div v-if="mapStore.selectedProject" id="selected-project-info">
         <div>
@@ -84,10 +180,7 @@
             flat
             text-color="dark-grey"
             style="background-color: #f6f2c0"
-            @click="
-              mapStore.selectedProject = null;
-              mapStore.selectedFeature = null;
-            "
+            @click="mapStore.goBack"
           >
             <q-tooltip>Back</q-tooltip></q-btn
           >
@@ -110,13 +203,13 @@
           </div>
           <div class="q-mt-sm" style="min-height: 0px !important">
             <div><strong>Project Details:</strong></div>
-            <div class="row justify-evenly items-center q-my-sm score-row">
+            <div class="row justify-between items-center q-my-sm score-row">
               <div class="col text-center score-cell">
                 <div>Biodiversity</div>
                 <q-circular-progress
                   show-value
                   font-size="12px"
-                  :value="mapStore.selectedProject.biodiversity.totalScore"
+                  :value="Number(mapStore.selectedProject.biodiversity.totalScore)"
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
@@ -133,7 +226,7 @@
                 <q-circular-progress
                   show-value
                   font-size="12px"
-                  :value="mapStore.selectedProject.climate.totalScore"
+                  :value="Number(mapStore.selectedProject.climate.totalScore)"
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
@@ -149,7 +242,7 @@
                 <q-circular-progress
                   show-value
                   font-size="12px"
-                  :value="mapStore.selectedProject.socialJustice.totalScore"
+                  :value="Number(mapStore.selectedProject.socialJustice.totalScore)"
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
@@ -160,12 +253,12 @@
                   {{ mapStore.selectedProject.socialJustice.totalScore }}/{{ MAX_SCORE }}
                 </q-circular-progress>
               </div>
-              <div class="col text-center score-cell">
-                <div>Transformative Potential</div>
+              <div class="col text-center score-cell q-pr-lg" style="white-space: nowrap">
+                <div style="">Transformative Potential</div>
                 <q-circular-progress
                   show-value
                   font-size="12px"
-                  :value="mapStore.selectedProject.transformativePotential.totalScore"
+                  :value="Number(mapStore.selectedProject.transformativePotential.totalScore)"
                   :max="MAX_SCORE"
                   size="75px"
                   :thickness="0.22"
@@ -177,20 +270,26 @@
                 </q-circular-progress>
               </div>
             </div>
-
+            <!-- Biodiversity Table -->
+            <div style="display: flex">
+              <div>Biodiversity</div>
+              <!-- <IconButton :type="'info'"></IconButton> -->
+            </div>
+            <div class="q-my-md">
+              The Biodiversity theme evaluates potential NBS impacts on biodiversity in terms of
+              habitat protection and ecosystem connectivity, as well as comparing performance
+              against declared biodiversity goals.
+            </div>
             <table style="border-collapse: collapse; width: 100%">
-              <th>
-                <tr>
-                  Biodiversity
-                </tr>
-              </th>
               <tr>
+                <th :style="cellStyle" style="background-color: lightgrey"></th>
                 <th :style="cellStyle">Protected<br />Areas</th>
                 <th :style="cellStyle">Coastal<br />Habitats</th>
                 <th :style="cellStyle">Fraction of<br />Natural Area</th>
                 <th :style="cellStyle">Ambition and<br />performance</th>
               </tr>
               <tr>
+                <td :style="{ ...cellStyle }">Project</td>
                 <td :style="{ ...cellStyle }">
                   {{ mapStore.selectedProject.biodiversity.protectedAreas }}
                 </td>
@@ -204,21 +303,41 @@
                   {{ mapStore.selectedProject.biodiversity.ambitionPerformance }}
                 </td>
               </tr>
+              <tr v-if="mapStore.fuaResults">
+                <td :style="{ ...cellStyle }">FUA</td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.biodiversity.protectedAreas }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.biodiversity.coastalHabitats }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.biodiversity.fractionNaturalArea }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.biodiversity.ambitionPerformance }}
+                </td>
+              </tr>
             </table>
             <br />
+            <!-- Climate Table -->
+            <div>Climate</div>
+            <div class="q-my-md">
+              Under the Climate theme, indicators assess the contribution of NBS assemblages to
+              climate change mitigation and adaptation through impacts on land surface temperature
+              reduction, carbon storage, and stormwater retention and evaluate these contributions
+              compared to stated climate-related ambitions.
+            </div>
             <table style="border-collapse: collapse; width: 100%">
-              <th>
-                <tr>
-                  Climate
-                </tr>
-              </th>
               <tr>
+                <th :style="cellStyle" style="background-color: lightgrey"></th>
                 <th :style="cellStyle">Land Surface<br />Temperature</th>
                 <th :style="cellStyle">Carbon<br />Storage</th>
                 <th :style="cellStyle">Stormwater Holding<br />Capacity</th>
                 <th :style="cellStyle">Ambition and<br />performance</th>
               </tr>
               <tr>
+                <td :style="{ ...cellStyle }">Project</td>
                 <td :style="{ ...cellStyle }">
                   {{ mapStore.selectedProject.climate.landSurfaceTemp }}
                 </td>
@@ -232,22 +351,41 @@
                   {{ mapStore.selectedProject.climate.ambitionPerformance }}
                 </td>
               </tr>
+              <tr v-if="mapStore.fuaResults">
+                <td :style="{ ...cellStyle }">FUA</td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.climate.landSurfaceTemp }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.climate.carbonStorage }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.climate.stormwaterHoldingCapacity }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.climate.ambitionPerformance }}
+                </td>
+              </tr>
             </table>
             <br />
-
+            <!-- Social Justice Table -->
+            <div>Social Justice</div>
+            <div class="q-my-md">
+              The Social Justice theme focuses on the accessibility and equitable distribution of
+              NBS benefits, including an evaluation of the proximity of people to green and blue
+              spaces, recreational opportunities, and the inclusiveness of beneficiary groups. It
+              also evaluates these impacts from the perspective of social justice-related ambitions.
+            </div>
             <table style="border-collapse: collapse; width: 100%">
-              <th>
-                <tr>
-                  Social Justice
-                </tr>
-              </th>
               <tr>
+                <th :style="cellStyle" style="background-color: lightgrey"></th>
                 <th :style="cellStyle">Population Access<br />to Blue and Green<br />Spaces</th>
                 <th :style="cellStyle">Recreation Potential<br />Within and Without<br />NBS</th>
                 <th :style="cellStyle">Inclusiveness<br />of<br />Project Beneficiaries</th>
                 <th :style="cellStyle">Ambition<br />and<br />performance</th>
               </tr>
               <tr>
+                <td :style="{ ...cellStyle }">Project</td>
                 <td :style="{ ...cellStyle }">
                   {{ mapStore.selectedProject.socialJustice.blueGreenSpace }}
                 </td>
@@ -261,16 +399,33 @@
                   {{ mapStore.selectedProject.socialJustice.ambitionPerformance }}
                 </td>
               </tr>
+              <tr v-if="mapStore.fuaResults">
+                <td :style="{ ...cellStyle }">FUA</td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.socialJustice.blueGreenSpace }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.socialJustice.recreationPotential }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.socialJustice.inclusiveness }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.socialJustice.ambitionPerformance }}
+                </td>
+              </tr>
             </table>
             <br />
-
+            <!-- Transformative Potential Table -->
+            <div>Transformative Potential</div>
+            <div class="q-my-md">
+              The Transformative Potential theme considers the long-term sustainability and systemic
+              impact of NBS by assessing the quality of project design, integration of long-term and
+              cross-cutting perspectives, and considerations given to stakeholder diversity.
+            </div>
             <table style="border-collapse: collapse; width: 100%">
-              <th>
-                <tr>
-                  Transformative Potential
-                </tr>
-              </th>
               <tr>
+                <th :style="cellStyle" style="background-color: lightgrey"></th>
                 <th :style="cellStyle">
                   Potential for<br />High Quality<br />Project Result Delivery
                 </th>
@@ -282,6 +437,7 @@
                 </th>
               </tr>
               <tr>
+                <td :style="{ ...cellStyle }">Project</td>
                 <td :style="{ ...cellStyle }">
                   {{ mapStore.selectedProject.transformativePotential.resultDelivery }}
                 </td>
@@ -295,202 +451,23 @@
                   {{ mapStore.selectedProject.transformativePotential.targetAlignment }}
                 </td>
               </tr>
+              <tr v-if="mapStore.fuaResults">
+                <td :style="{ ...cellStyle }">FUA</td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.transformativePotential.resultDelivery }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.transformativePotential.longTermPerspective }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.transformativePotential.diversity }}
+                </td>
+                <td :style="{ ...cellStyle }">
+                  {{ mapStore.fuaResults.transformativePotential.targetAlignment }}
+                </td>
+              </tr>
             </table>
             <br />
-
-            <!-- <div class="q-px-lg">
-              Biodiversity Indicators:
-              <q-list separator class="q-py-xs">
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Protected Areas</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.biodiversity.protectedAreas
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Costal Habitats</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.biodiversity.coastalHabitats
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Fraction of Natural Area</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.biodiversity.fractionNaturalArea
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >NBS Biodiversity-related Ambition and Performance</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.biodiversity.ambitionPerformance
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div>
-            <div class="q-px-lg">
-              Climate Indicators:
-              <q-list separator class="q-py-xs">
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Land Surface Temperature</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.climate.landSurfaceTemp
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Carbon Storage</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.climate.carbonStorage
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Stormwater Holding Capacity</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.climate.stormwaterHoldingCapacity
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >NBS Climate-related Ambition and Performance</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.climate.ambitionPerformance
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div>
-            <div class="q-px-lg">
-              Social Justice Indicators:
-              <q-list separator class="q-py-xs">
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Population Access to Blue and Green Spaces</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.socialJustice.blueGreenSpace
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >Recreation Potential within and without NBS</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.socialJustice.recreationPotential
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Inclusiveness of Project Beneficiaries</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.socialJustice.inclusiveness
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >NBS Social Justice-related Ambition and Performance</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.socialJustice.ambitionPerformance
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div>
-            <div class="q-px-lg">
-              Transformative Potential Indicators:
-              <q-list separator class="q-py-xs">
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >Potential for High-Quality Project Result Delivery</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.transformativePotential.resultDelivery
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Long-term Perspective</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.transformativePotential.longTermPerspective
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline>Diversity of Stakeholder Involvement</q-item-label>
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.transformativePotential.diversity
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-                <q-item dense class="q-py-sm metric-row">
-                  <q-item-section>
-                    <q-item-label overline
-                      >Alignment of NBS Targets with Climate, Biodiversity, and Social
-                      Objectives</q-item-label
-                    >
-                    <q-item-label
-                      ><strong>{{
-                        mapStore.selectedProject.transformativePotential.targetAlignment
-                      }}</strong></q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </div> -->
 
             <div class="text-center">
               <q-img class="dragonfly-logo" src="/dragonfly_logo.svg"></q-img>
@@ -735,7 +712,7 @@ label {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* justify-content: center; */
   height: 100%;
 }
 
