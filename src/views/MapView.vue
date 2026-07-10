@@ -48,8 +48,10 @@ const mapStore = useMapStore();
 
 .column-info {
   flex: 0 1 clamp(360px, 34vw, 750px);
-  min-width: clamp(320px, 30vw, 450px);
-  max-width: min(750px, 58vw);
+  min-width: clamp(420px, 46vw, 820px);
+  max-width: min(950px, 68vw);
+  /* min-width: clamp(320px, 30vw, 450px); */
+  /* max-width: min(750px, 58vw); */
   transition:
     min-width 0.25s ease,
     max-width 0.25s ease;

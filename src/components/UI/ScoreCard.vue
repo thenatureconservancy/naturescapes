@@ -1,7 +1,9 @@
 <template>
   <q-card class="my-card">
     <q-card-section>
-      <div class="text-size-lg">{{ modelValue["Name (short English title)"] }}</div>
+      <div class="text-size-lg" style="min-height: 65px; font-weight: 520">
+        {{ modelValue["Name (short English title)"] }}
+      </div>
       <div class="text-subtitle2 q-mt-sm">{{ modelValue["City or FUA"] }}</div>
     </q-card-section>
     <div style="margin: 0px auto 15px auto">
@@ -62,7 +64,13 @@
         icon="visibility"
         style="background-color: #f6f2c0"
         @click="handleViewProjectDetails"
-        ><q-tooltip>View Project Details</q-tooltip></q-btn
+        ><q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="top middle"
+          self="bottom middle"
+          >View Project Details</q-tooltip
+        ></q-btn
       >
       <q-btn
         flat
@@ -72,8 +80,21 @@
         style="background-color: #f6f2c0"
         @click="sendToProjectCollection(props.modelValue)"
       >
-        <q-tooltip v-if="mapStore.projectToggleOption == 'set'">Remove from Collection</q-tooltip
-        ><q-tooltip v-else>Add to Collection</q-tooltip>
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="top middle"
+          self="bottom middle"
+          v-if="mapStore.projectCollection.includes(props.modelValue)"
+          >Remove from Collection</q-tooltip
+        ><q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="top middle"
+          self="bottom middle"
+          v-else
+          >Add to Collection</q-tooltip
+        >
       </q-btn>
     </q-card-actions>
   </q-card>

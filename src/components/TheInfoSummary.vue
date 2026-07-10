@@ -1,26 +1,25 @@
 <template>
   <div class="q-pt-sm q-pl-md q-pr-xs" style="background-color: #f7f6f7; height: 100%; width: 100%">
-    <div class="q-mb-md" style="display: flex">
-      <!-- <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2> -->
-      <q-img
-        class="logo-image q-my-sm"
-        fit="contain"
-        src="/banner.png"
-        alt="Naturescapes Logo"
-        style="height: 100px; width: 100%"
-      />
-      <IconButton type="info" method="showInfo" @showInfo="showInfo" />
-    </div>
-    <q-separator class="q-mt-md" />
-    <q-scroll-area class="outer-scroll-area q-mt-md q-pr-md q-pb-none">
-      <q-slide-transition>
-        <div v-show="mapStore.showSummaryInfo">
+    <q-dialog v-model="mapStore.dialogVisible">
+      <q-card style="background-color: #f7f6f7">
+        <q-card-section class="q-ma-lg">
+          <div class="text-center q-mb-lg">
+            <q-img
+              class="logo-image q-my-sm"
+              fit="contain"
+              src="/banner.png"
+              alt="Naturescapes Logo"
+              style="height: 100px; width: 100%"
+            />
+          </div>
           <div>
             The
-            <a href="https://www.naturescapes-project.com/" target="_blank">Naturescapes</a> project
-            provides an overview of the contributions of different nature-based solutions (NBS)
-            within functional urban areas (FUAs) to address sustainability challenges based on a
-            common set of quantitative and qualitative indicators.
+            <a href="https://www.naturescapes-project.com/" target="_blank" style="color: #ead755"
+              >Naturescapes</a
+            >
+            project provides an overview of the contributions of different nature-based solutions
+            (NBS) within functional urban areas (FUAs) to address sustainability challenges based on
+            a common set of quantitative and qualitative indicators.
             <br />
             <br />
             It serves as a simple starting point for understanding individual NBS impacts and for
@@ -30,19 +29,41 @@
             <br />
             The database includes the profile of 390 NBS sites over 30 FUAs and it is available both
             as a stand-alone database here and through the
-            <a href="https://una.city/front-search/collection_phase/5" target="_blank"
+            <a
+              href="https://una.city/front-search/collection_phase/5"
+              target="_blank"
+              style="color: #ead755"
               >Urban Nature Atlas</a
             >
             where more details are available on the individual NBS.
-            <br />
-            <br />
-            <a href="/scorecard_purpose_draft_methodology.pdf" target="_blank"
-              >Brief on Scorecard Purpose and Draft Methodology</a
-            >
           </div>
-          <q-separator class="q-my-md" />
-        </div>
-      </q-slide-transition>
+          <div class="q-mt-xl">
+            <q-btn
+              text-color="dark-grey"
+              flat
+              outline
+              label="Enter"
+              @click="mapStore.dialogVisible = false"
+              style="margin: auto; width: fit-content; display: block; background-color: #f6f2c0"
+            ></q-btn>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <div class="q-mb-md" style="display: flex">
+      <!-- <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2> -->
+      <q-img
+        class="logo-image q-my-sm"
+        fit="contain"
+        src="/banner.png"
+        alt="Naturescapes Logo"
+        style="height: 100px; width: 100%"
+      />
+      <!-- <IconButton type="info" method="showInfo" @showInfo="showInfo" /> -->
+    </div>
+    <q-separator class="q-mt-md" />
+    <q-scroll-area class="outer-scroll-area q-mt-md q-pr-md q-pb-none">
       <div
         v-if="!mapStore.selectedProject"
         style="
@@ -71,7 +92,14 @@
           ]"
         >
           <template v-slot:one>
-            <q-chip class="q-ml-sm" outline dense color="grey-6" text-color="white" label="390" />
+            <q-chip
+              class="q-ml-sm"
+              outline
+              dense
+              color="grey-6"
+              text-color="white"
+              :label="filteredProjects.length.toString()"
+            />
           </template>
           <template v-slot:two>
             <q-chip
@@ -86,83 +114,62 @@
         </q-btn-toggle>
       </div>
       <div v-if="!mapStore.selectedProject" class="search-row">
-        <div v-if="mapStore.projectToggleOption == 'all'" class="search-inline">
-          <div class="search-input-wrap">
-            <q-input
+        <div class="q-mt-sm" style="display: flex">
+          <div v-if="mapStore.projectToggleOption == 'all'" class="search-inline q-mb-sm">
+            <div class="search-input-wrap">
+              <q-input
+                outlined
+                dense
+                standout
+                placeholder="Filter by keyword(s)"
+                v-model="mapStore.keywordSearch"
+                class="bg-white"
+              />
+              <div class="text-caption q-ml-xs q-mb-xs">
+                <span class="material-icons-outlined"> info </span>
+                The cards below show NBS projects currently visible on the map, and matching your
+                search or filter criteria.
+              </div>
+            </div>
+          </div>
+          <div v-if="mapStore.projectToggleOption == 'all'">
+            <q-btn
+              text-color="dark-grey"
+              class="q-mx-sm"
+              style="background-color: #f6f2c0"
+              icon="tune"
+              round
               outlined
-              dense
-              standout
-              placeholder="Filter by keyword(s)"
-              v-model="mapStore.keywordSearch"
-              class="bg-white"
-            />
+              flat
+              @click="mapStore.resultsPanelOpen = !mapStore.resultsPanelOpen"
+              ><q-tooltip
+                class="bg-white text-body2 text-black shadow-2"
+                style="border: 1px solid grey"
+                anchor="center right"
+                self="center start"
+                >Advanced Filters</q-tooltip
+              >
+              <q-badge
+                v-if="mapStore.advancedFiltersApplied"
+                floating
+                transparent
+                rounded
+                color="red"
+              />
+            </q-btn>
           </div>
         </div>
-        <div v-if="mapStore.projectToggleOption == 'all'" class="search-btn-wrap q-mt-xs">
-          <q-btn
-            text-color="dark-grey"
-            class="q-mr-sm"
-            style="background-color: #f6f2c0"
-            icon="tune"
-            round
-            outlined
-            flat
-            @click="mapStore.resultsPanelOpen = !mapStore.resultsPanelOpen"
-            ><q-tooltip
-              class="bg-white text-body2 text-black shadow-2"
-              style="border: 1px solid grey"
-              anchor="center right"
-              self="center start"
-              >Advanced Filters</q-tooltip
-            >
-            <!-- <q-badge
-              v-if="mapStore.filterQuery != ''"
-              floating
-              transparent
-              rounded
-              color="red"
-              :label="mapStore.numOfFilters"
-          /> -->
-          </q-btn>
-        </div>
         <div v-if="mapStore.projectToggleOption == 'all'" class="cards-wrap q-pb-xl">
-          <div class="card-grid" :class="{ 'is-expanded': mapStore.sidePanelExpanded }">
+          <div
+            class="card-grid is-expanded"
+            :class="{ 'is-collapsed': !mapStore.sidePanelExpanded }"
+          >
             <ScoreCard v-for="(card, i) in filteredProjects" :key="i" :model-value="card" />
           </div>
         </div>
-        <div v-else class="cards-wrap q-pb-xl">
-          <div v-if="mapStore.projectCollection.length > 0" class="text-center">
-            <q-btn
-              class="q-mx-md"
-              style="background-color: #f6f2c0"
-              text-color="black"
-              flat
-              round
-              icon="download"
-              @click="mapStore.generatePdf()"
-              ><q-tooltip>Save Collection</q-tooltip></q-btn
-            >
-            <q-btn
-              class="q-mx-md"
-              style="background-color: #f6f2c0"
-              text-color="black"
-              flat
-              round
-              icon="delete_forever"
-              @click="mapStore.projectCollection = []"
-              ><q-tooltip>Clear Collection</q-tooltip></q-btn
-            >
-          </div>
-          <div
-            v-if="mapStore.projectCollection.length > 0"
-            class="card-grid q-mt-sm"
-            :class="{ 'is-expanded': mapStore.sidePanelExpanded }"
-          >
-            <ScoreCard
-              v-for="(card, i) in mapStore.projectCollection"
-              :key="i"
-              :model-value="card"
-            />
+        <div v-else class="cards-wrap">
+          <div v-if="mapStore.projectCollection.length > 0">
+            <CollectionTable></CollectionTable>
           </div>
           <div v-else class="text-center" style="color: red">
             <span class="material-icons-outlined"> announcement </span>
@@ -182,7 +189,28 @@
             style="background-color: #f6f2c0"
             @click="mapStore.goBack"
           >
-            <q-tooltip>Back</q-tooltip></q-btn
+            <q-tooltip
+              class="bg-white text-body2 text-black shadow-2"
+              style="border: 1px solid grey"
+              >Back</q-tooltip
+            ></q-btn
+          >
+          <q-btn
+            class="q-ml-sm"
+            flat
+            round
+            :icon="selectedProjectInCollection ? 'remove' : 'add'"
+            text-color="dark-grey"
+            style="background-color: #f6f2c0"
+            @click="sendToProjectCollection()"
+          >
+            <q-tooltip
+              class="bg-white text-body2 text-black shadow-2"
+              style="border: 1px solid grey"
+              >{{
+                selectedProjectInCollection ? "Remove from Collection" : "Add to Collection"
+              }}</q-tooltip
+            ></q-btn
           >
           <h5 class="text-center q-my-sm">{{ mapStore.selectedProject.name }}</h5>
           <div class="text-center q-my-sm" v-if="mapStore.selectedProject.nativeName !== 'NA'">
@@ -488,9 +516,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import ScoreCard from "./UI/ScoreCard.vue";
 import IconButton from "./UI/IconButton.vue";
+import CollectionTable from "./UI/CollectionTable.vue";
 import { useMapStore } from "../stores/mapStore";
 const mapStore = useMapStore();
 const filteredProjects = ref([]);
@@ -504,8 +533,15 @@ const cellStyle = {
   backgroundColor: "#f7f6f7",
 };
 
+const selectedProjectSourceRecord = computed(() => mapStore.selectedProject?.sourceRecord ?? null);
+
+const selectedProjectInCollection = computed(() => {
+  const sourceRecord = selectedProjectSourceRecord.value;
+  return sourceRecord ? mapStore.projectCollection.includes(sourceRecord) : false;
+});
+
 function showInfo() {
-  mapStore.showSummaryInfo = !mapStore.showSummaryInfo;
+  mapStore.dialogVisible = !mapStore.dialogVisible;
 }
 
 function applyKeywordFilter() {
@@ -539,6 +575,19 @@ function applyKeywordFilter() {
         .includes(keywordSearch),
   );
 }
+
+const sendToProjectCollection = () => {
+  const project = selectedProjectSourceRecord.value;
+  if (!project) {
+    return;
+  }
+
+  mapStore.projectCollection.includes(project)
+    ? mapStore.projectCollection.splice(mapStore.projectCollection.indexOf(project), 1)
+    : mapStore.projectCollection.push(project);
+
+  console.log(mapStore.projectCollection);
+};
 
 watch(
   () => mapStore.keywordSearch,
@@ -580,14 +629,14 @@ watch(
 
 <style scoped>
 .search-row {
-  --space: 12px;
+  /* --space: 12px; */
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space);
   padding: 0;
   width: 100%;
-  box-sizing: border-box;
+  box-sizing: border-box; */
 }
 
 .cards-wrap {

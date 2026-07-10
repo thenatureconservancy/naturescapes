@@ -54,13 +54,6 @@
             </q-item-section>
             <q-item-section>Satellite Imagery</q-item-section>
           </q-item>
-          <!-- <q-separator />
-          <q-item clickable v-ripple>
-            <q-item-section>Icon as avatar</q-item-section>
-            <q-item-section avatar>
-              <q-icon color="primary" name="bluetooth" />
-            </q-item-section>
-          </q-item> -->
         </q-list>
       </div>
     </transition>
@@ -85,7 +78,7 @@
       >
     </div>
 
-    <div class="mapboxgl-ctrl mapboxgl-ctrl-group custom-control">
+    <!-- <div class="mapboxgl-ctrl mapboxgl-ctrl-group custom-control">
       <q-btn
         :ripple="false"
         flat
@@ -104,10 +97,48 @@
           Expand or contract side panel
         </q-tooltip></q-btn
       >
+    </div> -->
+  </div>
+
+  <div class="info-control-wrap">
+    <div class="mapboxgl-ctrl mapboxgl-ctrl-group custom-control">
+      <q-btn
+        :ripple="false"
+        flat
+        dense
+        icon="info"
+        @click="mapStore.dialogVisible = !mapStore.dialogVisible"
+      >
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="center right"
+          self="center start"
+          >About</q-tooltip
+        >
+      </q-btn>
     </div>
   </div>
 
-  <div id="info"></div>
+  <div class="user-guide-control-wrap">
+    <div class="mapboxgl-ctrl mapboxgl-ctrl-group custom-control">
+      <q-btn
+        :ripple="false"
+        flat
+        dense
+        icon="help"
+        @click="mapStore.showUserGuide = !mapStore.showUserGuide"
+      >
+        <q-tooltip
+          class="bg-white text-body2 text-black shadow-2"
+          style="border: 1px solid grey"
+          anchor="center right"
+          self="center start"
+          >User Guide</q-tooltip
+        >
+      </q-btn>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -202,9 +233,12 @@ div#map {
 
 .basemap-control-wrap {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 133px;
+  left: 10px;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .left-action-control-wrap {
@@ -217,10 +251,24 @@ div#map {
   gap: 8px;
 }
 
+.info-control-wrap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.user-guide-control-wrap {
+  position: absolute;
+  top: 55px;
+  right: 10px;
+  z-index: 1;
+}
+
 .basemap-panel {
   position: absolute;
   top: 0;
-  right: calc(100% + 10px);
+  left: calc(100% + 10px);
   width: fit-content;
   max-width: min(280px, calc(100vw - 70px));
   background: #fff;

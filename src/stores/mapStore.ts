@@ -3,7 +3,21 @@ import { ref, reactive, computed, watch } from "vue";
 import { markRaw } from "vue";
 import mapboxgl from "mapbox-gl";
 import * as turf from "@turf/turf";
+import Papa from "papaparse";
 import pdfMake from "pdfmake/build/pdfmake";
+
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
+    new Promise((resolve) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+
+      timeout = setTimeout(() => resolve(func(...args)), waitFor);
+    });
+}
 
 export const useMapStore = defineStore("map", () => {
   const mapboxToken =
@@ -44,6 +58,12 @@ export const useMapStore = defineStore("map", () => {
   let projectToggleOption = ref("all");
   let projectCollection = ref([]);
   let printMap = ref(false);
+  let dialogVisible = ref(true);
+  let tableFilterBiodiversity = ref(true);
+  let tableFilterClimate = ref(true);
+  let tableFilterSocialJustice = ref(true);
+  let tableFilterTransformativePotential = ref(true);
+  let showUserGuide = ref(false);
   const indicatorFilterFields = [
     "Protected Area",
     "Coastal habitat",
@@ -70,6 +90,13 @@ export const useMapStore = defineStore("map", () => {
   let polygonFeatureById: Record<number, { properties: any; geometry: any }> = {};
   let allPolygonFeatures: any[] = [];
   let allCentroidFeatures: any[] = [];
+
+  const advancedFiltersApplied = computed(
+    () =>
+      Object.values(indicatorFilterState).some((state) => state.active) ||
+      filterRegion.value.length > 0 ||
+      filterFUA.value.length > 0,
+  );
 
   const getIndicatorFilterValue = (field: string) => {
     return indicatorFilterState[field]?.value ?? 0;
@@ -377,7 +404,7 @@ export const useMapStore = defineStore("map", () => {
     return leafIds;
   };
 
-  const syncVisibleProjectsFromMap = async () => {
+  const syncVisibleProjectsFromMap = debounce(async () => {
     const mapInstance = map.value;
     if (!mapInstance) {
       visibleProjectIds.value = null;
@@ -428,7 +455,7 @@ export const useMapStore = defineStore("map", () => {
     }
 
     visibleProjectIds.value = Array.from(idSet);
-  };
+  }, 150);
 
   const setLayerVisibility = (layerId: string, visible: boolean) => {
     if (!map.value?.getLayer(layerId)) return;
@@ -889,118 +916,53 @@ export const useMapStore = defineStore("map", () => {
     resultsPanelOpen.value = true;
   };
 
+  const loadCsvRecords = async (csvPath: string) => {
+    const response = await fetch(csvPath);
+    if (!response.ok) {
+      throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
+    }
+
+    const csvText = await response.text();
+    const parsed = Papa.parse<Record<string, string>>(csvText, {
+      header: true,
+      skipEmptyLines: "greedy",
+      transformHeader: (header) => header.replace(/^\ufeff/, "").trim(),
+      transform: (value) => value.trim(),
+    });
+
+    if (parsed.errors.length > 0) {
+      console.warn("CSV parse warnings:", parsed.errors);
+    }
+
+    const idHeader = parsed.meta.fields?.find((header) => header.toLowerCase() === "id") ?? "ID";
+
+    return parsed.data
+      .map((rawRow) => {
+        const row: Record<string, string | number> = {};
+
+        Object.entries(rawRow).forEach(([header, value]) => {
+          if (!header) return;
+          row[header] = value ?? "";
+        });
+
+        if (idHeader in row) {
+          const numericId = Number(String(row[idHeader]).trim());
+          if (Number.isFinite(numericId)) {
+            row[idHeader] = numericId;
+          }
+        }
+
+        return row;
+      })
+      .filter((row) => Object.values(row).some((value) => String(value).trim().length > 0));
+  };
+
   // parse csv for data
   const getAllProjects = async () => {
     try {
-      const response = await fetch("/Joint Scores trimmed and formatted scored NBS sites v3_1.csv");
-      if (!response.ok) {
-        throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
-      }
-
-      const csvText = await response.text();
-      const normalizedCsvText = csvText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-      const parseCsvRows = (text: string) => {
-        const rows: string[] = [];
-        let currentRow = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < text.length; i += 1) {
-          const char = text[i];
-          const nextChar = text[i + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              currentRow += '"';
-              i += 1;
-            } else {
-              inQuotes = !inQuotes;
-              currentRow += char;
-            }
-          } else if (char === "\n" && !inQuotes) {
-            if (currentRow.trim().length > 0) {
-              rows.push(currentRow);
-            }
-            currentRow = "";
-          } else {
-            currentRow += char;
-          }
-        }
-
-        if (currentRow.trim().length > 0) {
-          rows.push(currentRow);
-        }
-
-        return rows;
-      };
-
-      const rows = parseCsvRows(normalizedCsvText);
-
-      if (rows.length === 0) return [];
-
-      const parseCsvLine = (line: string) => {
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i += 1) {
-          const char = line[i];
-          const nextChar = line[i + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              current += '"';
-              i += 1;
-            } else {
-              inQuotes = !inQuotes;
-              current += char;
-            }
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-            continue;
-          }
-
-          current += char;
-        }
-
-        values.push(current.trim());
-        return values;
-      };
-
-      let headerLine = rows[0];
-      if (!headerLine) return [];
-      // Remove BOM if present
-      if (headerLine.charCodeAt(0) === 0xfeff) {
-        headerLine = headerLine.slice(1);
-      }
-      const headers = parseCsvLine(headerLine);
-      console.log("Parsed CSV headers:", headers);
-
-      const idHeader = headers.find((header) => header.trim().toLowerCase() === "id") ?? "ID";
-
-      const projects = rows
-        .slice(1)
-        .filter((line) => line.trim().length > 0)
-        .map((line) => {
-          const rowValues = parseCsvLine(line);
-          const row = headers.reduce(
-            (rowObject, header, index) => {
-              rowObject[header] = rowValues[index] ?? "";
-              return rowObject;
-            },
-            {} as Record<string, string | number>,
-          );
-
-          if (idHeader in row) {
-            const numericId = Number(String(row[idHeader]).trim());
-            if (Number.isFinite(numericId)) {
-              row[idHeader] = numericId;
-            }
-          }
-
-          return row;
-        });
+      const projects = await loadCsvRecords(
+        "/Joint Scores trimmed and formatted scored NBS sites v3_1.csv",
+      );
 
       // console.log("All projects from CSV:", projects);
       allProjects.value = projects;
@@ -1014,115 +976,9 @@ export const useMapStore = defineStore("map", () => {
 
   const getAllFua = async () => {
     try {
-      const response = await fetch("/Joint Scores trimmed and formatted scored FUA wide v1_2.csv");
-      if (!response.ok) {
-        throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
-      }
-
-      const csvText = await response.text();
-      const normalizedCsvText = csvText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-      const parseCsvRows = (text: string) => {
-        const rows: string[] = [];
-        let currentRow = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < text.length; i += 1) {
-          const char = text[i];
-          const nextChar = text[i + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              currentRow += '"';
-              i += 1;
-            } else {
-              inQuotes = !inQuotes;
-              currentRow += char;
-            }
-          } else if (char === "\n" && !inQuotes) {
-            if (currentRow.trim().length > 0) {
-              rows.push(currentRow);
-            }
-            currentRow = "";
-          } else {
-            currentRow += char;
-          }
-        }
-
-        if (currentRow.trim().length > 0) {
-          rows.push(currentRow);
-        }
-
-        return rows;
-      };
-
-      const rows = parseCsvRows(normalizedCsvText);
-
-      if (rows.length === 0) return [];
-
-      const parseCsvLine = (line: string) => {
-        const values: string[] = [];
-        let current = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i += 1) {
-          const char = line[i];
-          const nextChar = line[i + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              current += '"';
-              i += 1;
-            } else {
-              inQuotes = !inQuotes;
-              current += char;
-            }
-          } else if (char === "," && !inQuotes) {
-            values.push(current.trim());
-            current = "";
-            continue;
-          }
-
-          current += char;
-        }
-
-        values.push(current.trim());
-        return values;
-      };
-
-      let headerLine = rows[0];
-      if (!headerLine) return [];
-      // Remove BOM if present
-      if (headerLine.charCodeAt(0) === 0xfeff) {
-        headerLine = headerLine.slice(1);
-      }
-      const headers = parseCsvLine(headerLine);
-      console.log("Parsed CSV headers:", headers);
-
-      const idHeader = headers.find((header) => header.trim().toLowerCase() === "id") ?? "ID";
-
-      const projects = rows
-        .slice(1)
-        .filter((line) => line.trim().length > 0)
-        .map((line) => {
-          const rowValues = parseCsvLine(line);
-          const row = headers.reduce(
-            (rowObject, header, index) => {
-              rowObject[header] = rowValues[index] ?? "";
-              return rowObject;
-            },
-            {} as Record<string, string | number>,
-          );
-
-          if (idHeader in row) {
-            const numericId = Number(String(row[idHeader]).trim());
-            if (Number.isFinite(numericId)) {
-              row[idHeader] = numericId;
-            }
-          }
-
-          return row;
-        });
+      const projects = await loadCsvRecords(
+        "/Joint Scores trimmed and formatted scored FUA wide v1_2.csv",
+      );
 
       // console.log("All projects from CSV:", projects);
       allFua.value = projects;
@@ -1137,6 +993,8 @@ export const useMapStore = defineStore("map", () => {
   // csv query based on layer click
   const selectProjectFromRecord = (project: Record<string, string | number>) => {
     selectedProject.value = {
+      sourceRecord: project,
+      sourceId: Number(project.ID ?? project.id),
       name: project["Name (short English title)"],
       nativeName: project["Native language title"],
       cityFUA: project["City or FUA"],
@@ -1561,6 +1419,12 @@ export const useMapStore = defineStore("map", () => {
     projectToggleOption,
     projectCollection,
     numOfFilters,
+    dialogVisible,
+    tableFilterBiodiversity,
+    tableFilterClimate,
+    tableFilterSocialJustice,
+    tableFilterTransformativePotential,
+    showUserGuide,
     getIndicatorFilterValue,
     setIndicatorFilterValue,
     clearIndicatorFilters,
@@ -1580,5 +1444,6 @@ export const useMapStore = defineStore("map", () => {
     getAllFua,
     goBack,
     generatePdf,
+    advancedFiltersApplied,
   };
 });
