@@ -488,6 +488,12 @@ export const useMapStore = defineStore("map", () => {
       }
     }
 
+    // During startup/style refresh, rendered features can be temporarily empty.
+    // Keep the prior value until tiles are loaded to avoid clearing cards on first paint.
+    if (idSet.size === 0 && allProjects.value.length > 0 && !mapInstance.areTilesLoaded()) {
+      return;
+    }
+
     visibleProjectIds.value = Array.from(idSet);
   }, 150);
 
@@ -677,7 +683,7 @@ export const useMapStore = defineStore("map", () => {
         }),
       );
 
-      mapInstance.on("load", () => {
+      mapInstance.on("load", async () => {
         map.value = mapInstance;
         zoomLevel.value = mapInstance.getZoom();
         mapInstance.showTileBoundaries = false;
@@ -785,17 +791,21 @@ export const useMapStore = defineStore("map", () => {
           syncVisibleProjectsFromMap();
         });
 
+        mapInstance.on("idle", () => {
+          syncVisibleProjectsFromMap();
+        });
+
         applyMapFog(mapInstance);
 
         // function initialization
         // ---------------------------------------
         addMapControls();
-        addNBSLayer();
+        await addNBSLayer();
         zoomToGlobal();
         getAllProjects();
         getAllFua();
         applyFeatureVisibilityMode();
-        syncVisibleProjectsFromMap();
+        await syncVisibleProjectsFromMap();
 
         addPolygonClickInteraction(mapInstance);
       });
@@ -1194,6 +1204,34 @@ export const useMapStore = defineStore("map", () => {
       day: "numeric",
     });
 
+    const imagePathToDataUrl = async (path: string) => {
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(`Failed to load image: ${response.status} ${response.statusText}`);
+      }
+
+      const imageBlob = await response.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error("Failed to convert image blob to data URL"));
+        };
+        reader.onerror = () => reject(new Error("Failed reading image blob"));
+        reader.readAsDataURL(imageBlob);
+      });
+    };
+
+    let legendImageDataUrl: string | null = null;
+    try {
+      legendImageDataUrl = await imagePathToDataUrl("/export_legend.jpg");
+    } catch (error) {
+      console.warn("Legend image will be omitted from PDF export.", error);
+    }
+
     const headerRowHeight = 124;
     const headerColumnWidths = [
       132, // Project Name
@@ -1408,6 +1446,60 @@ export const useMapStore = defineStore("map", () => {
       ]);
     });
 
+    const content: any[] = [
+      {
+        text: "Naturescape",
+        style: "header1",
+        alignment: "center",
+        margin: [0, 0, 0, 15],
+      },
+
+      {
+        table: {
+          headerRows: 1,
+          heights: (rowIndex: number) => (rowIndex === 0 ? headerRowHeight : undefined),
+
+          widths: headerColumnWidths,
+
+          body: tableBody,
+        },
+
+        layout: {
+          fillColor: (rowIndex: number, _node: any, columnIndex: number) => {
+            if (rowIndex === 0) return "#d9d9d9";
+
+            if (columnIndex >= 1 && columnIndex <= 4) return "#e1ebd7";
+            if (columnIndex >= 5 && columnIndex <= 8) return "#f3d7d3";
+            if (columnIndex >= 9 && columnIndex <= 12) return "#e0f1f9";
+            if (columnIndex >= 13 && columnIndex <= 16) return "#f6f2c0";
+
+            return null;
+          },
+
+          hLineWidth: () => 1,
+          vLineWidth: () => 1,
+
+          hLineColor: () => "#c0c0c0",
+          vLineColor: () => "#c0c0c0",
+
+          paddingLeft: () => 4.5,
+          paddingRight: () => 4.5,
+          paddingTop: () => 6,
+          paddingBottom: () => 6,
+        },
+      },
+    ];
+
+    if (legendImageDataUrl) {
+      content.push({
+        image: legendImageDataUrl,
+        width: 200,
+        height: 90,
+        style: ["centerItem"],
+        margin: [0, 0, 0, 10],
+      });
+    }
+
     const docDefinition = {
       pageOrientation: "landscape",
 
@@ -1425,49 +1517,7 @@ export const useMapStore = defineStore("map", () => {
         margin: [0, 0, 0, 10],
       }),
 
-      content: [
-        {
-          text: "Naturescape",
-          style: "header1",
-          alignment: "center",
-          margin: [0, 0, 0, 15],
-        },
-
-        {
-          table: {
-            headerRows: 1,
-            heights: (rowIndex: number) => (rowIndex === 0 ? headerRowHeight : undefined),
-
-            widths: headerColumnWidths,
-
-            body: tableBody,
-          },
-
-          layout: {
-            fillColor: (rowIndex: number, _node: any, columnIndex: number) => {
-              if (rowIndex === 0) return "#d9d9d9";
-
-              if (columnIndex >= 1 && columnIndex <= 4) return "#e1ebd7";
-              if (columnIndex >= 5 && columnIndex <= 8) return "#f3d7d3";
-              if (columnIndex >= 9 && columnIndex <= 12) return "#e0f1f9";
-              if (columnIndex >= 13 && columnIndex <= 16) return "#f6f2c0";
-
-              return null;
-            },
-
-            hLineWidth: () => 1,
-            vLineWidth: () => 1,
-
-            hLineColor: () => "#c0c0c0",
-            vLineColor: () => "#c0c0c0",
-
-            paddingLeft: () => 4,
-            paddingRight: () => 4,
-            paddingTop: () => 6,
-            paddingBottom: () => 6,
-          },
-        },
-      ],
+      content,
 
       defaultStyle: {
         fontSize: 7,
