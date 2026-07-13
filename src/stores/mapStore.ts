@@ -64,6 +64,7 @@ export const useMapStore = defineStore("map", () => {
   let tableFilterSocialJustice = ref(true);
   let tableFilterTransformativePotential = ref(true);
   let showUserGuide = ref(false);
+  let showCollectionMap = ref(false);
   const indicatorFilterFields = [
     "Protected Area",
     "Coastal habitat",
@@ -248,13 +249,28 @@ export const useMapStore = defineStore("map", () => {
       );
     }
 
-    const filteredPolygonFeatures = matchingIds
-      ? allPolygonFeatures.filter((f: any) => matchingIds!.has(Number(f?.properties?.ID)))
-      : allPolygonFeatures;
+    let collectionIds: Set<number> | null = null;
+    if (showCollectionMap.value) {
+      collectionIds = new Set(
+        projectCollection.value
+          .map((project: any) => Number(project?.ID ?? project?.id))
+          .filter((id: number) => Number.isFinite(id)),
+      );
+    }
 
-    const filteredCentroidFeatures = matchingIds
-      ? allCentroidFeatures.filter((f: any) => matchingIds!.has(Number(f?.properties?.ID)))
-      : allCentroidFeatures;
+    const includeFeatureById = (featureId: number) => {
+      const passesCombinedFilters = !matchingIds || matchingIds.has(featureId);
+      const passesCollectionFilter = !collectionIds || collectionIds.has(featureId);
+      return passesCombinedFilters && passesCollectionFilter;
+    };
+
+    const filteredPolygonFeatures = allPolygonFeatures.filter((feature: any) =>
+      includeFeatureById(Number(feature?.properties?.ID)),
+    );
+
+    const filteredCentroidFeatures = allCentroidFeatures.filter((feature: any) =>
+      includeFeatureById(Number(feature?.properties?.ID)),
+    );
 
     const polygonSource = mapInstance.getSource("nbs-polygons") as
       | mapboxgl.GeoJSONSource
@@ -282,6 +298,24 @@ export const useMapStore = defineStore("map", () => {
   watch([filterRegion, filterFUA], applyCombinedFilters, { deep: true });
   watch(indicatorFilterState, applyCombinedFilters, { deep: true });
   watch(allProjects, applyCombinedFilters, { deep: true });
+  watch(
+    projectCollection,
+    () => {
+      if (!showCollectionMap.value) return;
+      applyCombinedFilters();
+    },
+    { deep: true },
+  );
+
+  const showProjectCollectionOnMap = () => {
+    showCollectionMap.value = !showCollectionMap.value;
+    applyCombinedFilters();
+  };
+
+  const showAllProjectsOnMap = () => {
+    showCollectionMap.value = false;
+    applyCombinedFilters();
+  };
 
   const resetFilters = () => {
     filterRegion.value = [];
@@ -518,7 +552,7 @@ export const useMapStore = defineStore("map", () => {
         type: "fill",
         source: "selected-feature",
         paint: {
-          "fill-color": "#f6f2c0",
+          "fill-color": "#7CF8FA",
           "fill-opacity": 0.3,
         },
       });
@@ -530,7 +564,7 @@ export const useMapStore = defineStore("map", () => {
         type: "line",
         source: "selected-feature",
         paint: {
-          "line-color": "#76e0c7",
+          "line-color": "#7CF8FA",
           "line-width": 5,
           "line-opacity": 0.95,
         },
@@ -1139,7 +1173,6 @@ export const useMapStore = defineStore("map", () => {
   };
 
   const generatePdf = async () => {
-    // set fonts
     pdfMake.fonts = {
       Roboto: {
         normal:
@@ -1152,238 +1185,318 @@ export const useMapStore = defineStore("map", () => {
       },
     };
 
-    let today = new Date();
-    let dateString = today.toLocaleDateString("en-US", {
+    const today = new Date();
+
+    const dateString = today.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
+    const headerRowHeight = 124;
+    const headerColumnWidths = [
+      132, // Project Name
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+      33,
+    ];
+    const headerLabels = [
+      "Project Name",
+      "Protected Area",
+      "Coastal Habitat",
+      "Green/Blue Area",
+      "Ambition & Performance",
+      "Land Surface Temperature",
+      "Carbon Storage",
+      "Stormwater Holding Capacity",
+      "Ambition & Performance",
+      "Population Access",
+      "Recreation Potential",
+      "Inclusiveness of Project Beneficiaries",
+      "Ambition & Performance",
+      "Potential for high-quality project result delivery",
+      "Long-term Perspective",
+      "Diversity of Stakeholder Involvement",
+      "Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives",
+    ];
+
     const s = (value: any) => (value === undefined || value === null ? "" : String(value));
 
-    const content: any[] = [
-      {
-        text: "Naturescapes Collection",
-        style: ["header1", "centerItem"],
-        margin: [0, 0, 0, 20],
-      },
+    const escapeXml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+
+    const wrapHeaderLabel = (
+      label: string,
+      ctx: CanvasRenderingContext2D,
+      maxLineWidth: number,
+    ) => {
+      const words = label.trim().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return [""];
+
+      if (ctx.measureText(label).width <= maxLineWidth) {
+        return [label];
+      }
+
+      const lines: string[] = [];
+      let currentLine = "";
+
+      const pushWord = (word: string) => {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (ctx.measureText(candidate).width <= maxLineWidth) {
+          currentLine = candidate;
+          return;
+        }
+
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = "";
+        }
+
+        if (ctx.measureText(word).width <= maxLineWidth) {
+          currentLine = word;
+          return;
+        }
+
+        // Split unusually long tokens to prevent overflow in narrow columns.
+        const chunks: string[] = [];
+        let start = 0;
+        while (start < word.length) {
+          let end = word.length;
+          let found = false;
+          while (end > start) {
+            const part = word.slice(start, end);
+            if (ctx.measureText(part).width <= maxLineWidth) {
+              chunks.push(part);
+              start = end;
+              found = true;
+              break;
+            }
+            end -= 1;
+          }
+          if (!found) {
+            chunks.push(word[start] ?? "");
+            start += 1;
+          }
+        }
+
+        chunks.forEach((chunk, index) => {
+          if (index === chunks.length - 1) {
+            currentLine = chunk;
+          } else {
+            lines.push(chunk);
+          }
+        });
+      };
+
+      words.forEach(pushWord);
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    };
+
+    const createVerticalHeaderSvg = (label: string, cellWidth: number, cellHeight: number) => {
+      const fontSize = 8;
+      const lineHeight = 9;
+      const padding = 2;
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        return {
+          svg: "",
+          lineCount: 1,
+        };
+      }
+
+      ctx.font = `700 ${fontSize}px Roboto, Arial, sans-serif`;
+      const lineWidthLimit = Math.max(8, cellHeight - padding * 2);
+      const lines = wrapHeaderLabel(label, ctx, lineWidthLimit);
+      const maxMeasuredLineWidth = lines.reduce((max, line) => {
+        const measured = ctx.measureText(line).width;
+        return measured > max ? measured : max;
+      }, 0);
+      const textHeight = lines.length * lineHeight;
+
+      const svgWidth = Math.max(1, Math.floor(cellWidth));
+      const svgHeight = Math.max(1, Math.floor(cellHeight));
+      const rotatedBlockWidth = textHeight;
+      const rotatedBlockHeight = maxMeasuredLineWidth;
+      const targetX = Math.max(0, (svgWidth - rotatedBlockWidth) / 2);
+      const targetY = Math.max(0, (svgHeight - rotatedBlockHeight) / 2);
+      const translateX = targetX;
+      const translateY = targetY + rotatedBlockHeight;
+      const textNodes = lines
+        .map((line, index) => {
+          const escaped = escapeXml(line);
+          const y = index * lineHeight + fontSize;
+          return `<text x="0" y="${y}" font-family="Helvetica" font-size="${fontSize}" font-weight="700" fill="#000000">${escaped}</text>`;
+        })
+        .join("");
+
+      return {
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}"><g transform="translate(${translateX} ${translateY}) rotate(-90)">${textNodes}</g></svg>`,
+      };
+    };
+
+    const verticalHeaderCell = (label: string, columnWidth: number) => {
+      const cellWidth = Math.max(4, columnWidth - 4);
+      const cellHeight = Math.max(4, headerRowHeight - 6);
+      const { svg } = createVerticalHeaderSvg(label, cellWidth, cellHeight);
+      if (!svg) {
+        return {
+          text: label,
+          style: "tableHeaderVertical",
+          alignment: "center",
+        };
+      }
+
+      return {
+        svg,
+        fit: [cellWidth, cellHeight],
+        alignment: "center",
+        margin: [0, 0, 0, 0],
+      };
+    };
+
+    const tableBody: any[] = [
+      headerLabels.map((label, index) =>
+        verticalHeaderCell(label, headerColumnWidths[index] ?? 35),
+      ),
     ];
 
     projectCollection.value.forEach((project) => {
-      // selectProjectFromRecord(project);
-      const selectedProject = {
-        name: project["Name (short English title)"],
-        nativeName: project["Native language title"],
-        cityFUA: project["City or FUA"],
-        region: project["Region"],
-        description: project["Short description of the intervention"],
-        website: project["Website of the intervention"],
-        biodiversity: {
-          label: "Biodiversity",
-          totalScore: project["Biodiversity"],
-          protectedAreas: project["Protected Area"],
-          coastalHabitats: project["Coastal habitat"],
-          fractionNaturalArea: project["Green/Blue Area Fraction"],
-          ambitionPerformance: project["Biodiversity-related ambition and performance"],
-        },
-        climate: {
-          label: "Climate",
-          totalScore: project["Climate"],
-          landSurfaceTemp: project["Land surface temperature"],
-          carbonStorage: project["Carbon storage"],
-          stormwaterHoldingCapacity: project["Stormwater holding capacity"],
-          ambitionPerformance: project["Climate-related ambition and performance"],
-        },
-        socialJustice: {
-          label: "Social Justice",
-          totalScore: project["Social Justice"],
-          blueGreenSpace: project["Population access"],
-          recreationPotential: project["Recreation potential"],
-          inclusiveness: project["Inclusiveness of project beneficiaries"],
-          ambitionPerformance: project["Social justice-related ambition and performance"],
-        },
-        transformativePotential: {
-          label: "Transformative Potential",
-          totalScore: project["Transformative Potential"],
-          resultDelivery: project["Potential for high-quality project result delivery"],
-          longTermPerspective: project["Long-term perspective"],
-          diversity: project["Diversity of stakeholder involvement"],
-          targetAlignment:
-            project["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"],
-        },
-      };
+      tableBody.push([
+        s(project["Name (short English title)"]),
 
-      content.push({
-        text: s(selectedProject.name),
-        style: "header2",
-        margin: [0, 0, 0, 10],
-      });
+        s(project["Protected Area"]),
+        s(project["Coastal habitat"]),
+        s(project["Green/Blue Area Fraction"]),
+        s(project["Biodiversity-related ambition and performance"]),
 
-      // Biodiversity Table
-      content.push({ text: "Biodiversity", style: "header3", margin: [0, 10, 0, 5] });
-      content.push({
-        table: {
-          widths: ["20%", "20%", "20%", "20%", "20%"],
-          body: [
-            [
-              { text: "", style: "tableHeader" },
-              { text: "Protected Areas", style: "tableHeader" },
-              { text: "Coastal Habitats", style: "tableHeader" },
-              { text: "Fraction of Natural Area", style: "tableHeader" },
-              { text: "Ambition and performance", style: "tableHeader" },
-            ],
-            [
-              "Project",
-              s(selectedProject.biodiversity.protectedAreas),
-              s(selectedProject.biodiversity.coastalHabitats),
-              s(selectedProject.biodiversity.fractionNaturalArea),
-              s(selectedProject.biodiversity.ambitionPerformance),
-            ],
-          ],
-        },
-        layout: "lightHorizontalLines",
-        margin: [0, 0, 0, 10],
-      });
+        s(project["Land surface temperature"]),
+        s(project["Carbon storage"]),
+        s(project["Stormwater holding capacity"]),
+        s(project["Climate-related ambition and performance"]),
 
-      // Climate Table
-      content.push({ text: "Climate", style: "header3", margin: [0, 10, 0, 5] });
-      content.push({
-        table: {
-          widths: ["20%", "20%", "20%", "20%", "20%"],
-          body: [
-            [
-              { text: "", style: "tableHeader" },
-              { text: "Land Surface Temperature", style: "tableHeader" },
-              { text: "Carbon Storage", style: "tableHeader" },
-              { text: "Stormwater Holding Capacity", style: "tableHeader" },
-              { text: "Ambition and performance", style: "tableHeader" },
-            ],
-            [
-              "Project",
-              s(selectedProject.climate.landSurfaceTemp),
-              s(selectedProject.climate.carbonStorage),
-              s(selectedProject.climate.stormwaterHoldingCapacity),
-              s(selectedProject.climate.ambitionPerformance),
-            ],
-          ],
-        },
-        layout: "lightHorizontalLines",
-        margin: [0, 0, 0, 10],
-      });
+        s(project["Population access"]),
+        s(project["Recreation potential"]),
+        s(project["Inclusiveness of project beneficiaries"]),
+        s(project["Social justice-related ambition and performance"]),
 
-      // Social Justice Table
-      content.push({ text: "Social Justice", style: "header3", margin: [0, 10, 0, 5] });
-      content.push({
-        table: {
-          widths: ["20%", "20%", "20%", "20%", "20%"],
-          body: [
-            [
-              { text: "", style: "tableHeader" },
-              { text: "Population Access to Blue and Green Spaces", style: "tableHeader" },
-              { text: "Recreation Potential Within and Without NBS", style: "tableHeader" },
-              { text: "Inclusiveness of Project Beneficiaries", style: "tableHeader" },
-              { text: "Ambition and performance", style: "tableHeader" },
-            ],
-            [
-              "Project",
-              s(selectedProject.socialJustice.blueGreenSpace),
-              s(selectedProject.socialJustice.recreationPotential),
-              s(selectedProject.socialJustice.inclusiveness),
-              s(selectedProject.socialJustice.ambitionPerformance),
-            ],
-          ],
-        },
-        layout: "lightHorizontalLines",
-        margin: [0, 0, 0, 10],
-      });
-
-      // Transformative Potential Table
-      content.push({ text: "Transformative Potential", style: "header3", margin: [0, 10, 0, 5] });
-      content.push({
-        table: {
-          widths: ["20%", "20%", "20%", "20%", "20%"],
-          body: [
-            [
-              { text: "", style: "tableHeader" },
-              { text: "Potential for High Quality Project Result Delivery", style: "tableHeader" },
-              { text: "Long-term Perspective", style: "tableHeader" },
-              { text: "Diversity of Stakeholder Involvement", style: "tableHeader" },
-              {
-                text: "Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives",
-                style: "tableHeader",
-              },
-            ],
-            [
-              "Project",
-              s(selectedProject.transformativePotential.resultDelivery),
-              s(selectedProject.transformativePotential.longTermPerspective),
-              s(selectedProject.transformativePotential.diversity),
-              s(selectedProject.transformativePotential.targetAlignment),
-            ],
-          ],
-        },
-        layout: "lightHorizontalLines",
-        margin: [0, 0, 0, 20], // Add more margin after the last table for spacing
-      });
+        s(project["Potential for high-quality project result delivery"]),
+        s(project["Long-term perspective"]),
+        s(project["Diversity of stakeholder involvement"]),
+        s(project["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"]),
+      ]);
     });
 
-    let docDefinition = {
+    const docDefinition = {
+      pageOrientation: "landscape",
+
+      pageMargins: [6, 40, 6, 30],
+
       header: {
         text: dateString,
         alignment: "right",
-        margin: [0, 20, 20, 0],
+        margin: [0, 15, 15, 0],
       },
-      footer: function (currentPage, pageCount) {
-        return {
-          text: "Page " + currentPage.toString() + " of " + pageCount.toString(),
+
+      footer: (currentPage: number, pageCount: number) => ({
+        text: `Page ${currentPage} of ${pageCount}`,
+        alignment: "center",
+        margin: [0, 0, 0, 10],
+      }),
+
+      content: [
+        {
+          text: "Naturescape",
+          style: "header1",
           alignment: "center",
-          margin: [0, 0, 0, 10],
-        };
-      },
-      content: content,
+          margin: [0, 0, 0, 15],
+        },
+
+        {
+          table: {
+            headerRows: 1,
+            heights: (rowIndex: number) => (rowIndex === 0 ? headerRowHeight : undefined),
+
+            widths: headerColumnWidths,
+
+            body: tableBody,
+          },
+
+          layout: {
+            fillColor: (rowIndex: number, _node: any, columnIndex: number) => {
+              if (rowIndex === 0) return "#d9d9d9";
+
+              if (columnIndex >= 1 && columnIndex <= 4) return "#e1ebd7";
+              if (columnIndex >= 5 && columnIndex <= 8) return "#f3d7d3";
+              if (columnIndex >= 9 && columnIndex <= 12) return "#e0f1f9";
+              if (columnIndex >= 13 && columnIndex <= 16) return "#f6f2c0";
+
+              return null;
+            },
+
+            hLineWidth: () => 1,
+            vLineWidth: () => 1,
+
+            hLineColor: () => "#c0c0c0",
+            vLineColor: () => "#c0c0c0",
+
+            paddingLeft: () => 4,
+            paddingRight: () => 4,
+            paddingTop: () => 6,
+            paddingBottom: () => 6,
+          },
+        },
+      ],
+
       defaultStyle: {
-        fontSize: 11,
-        color: "#374269",
+        fontSize: 7,
+        color: "#222222",
       },
+
       styles: {
         header1: {
           bold: true,
           fontSize: 18,
         },
-        header1a: {
-          bold: true,
-          fontSize: 16,
-        },
-        header2: {
-          bold: true,
-          fontSize: 14,
-        },
-        header3: {
-          bold: true,
-          fontSize: 12,
-        },
-        header4: {
-          fontSize: 12,
-        },
+
         tableHeader: {
           bold: true,
-          fontSize: 10,
-          color: "black",
+          fontSize: 7,
+          color: "#000000",
+          alignment: "center",
         },
-        anotherStyle: {
-          italics: true,
-          alignment: "right",
-        },
-        boldItem: {
+
+        tableHeaderVertical: {
           bold: true,
-        },
-        centerItem: {
+          fontSize: 7,
+          color: "#000000",
           alignment: "center",
         },
       },
     };
-    pdfMake.createPdf(docDefinition).download();
+
+    pdfMake.createPdf(docDefinition).download("Naturescapes_Collection.pdf");
   };
 
   function goBack() {
@@ -1425,6 +1538,9 @@ export const useMapStore = defineStore("map", () => {
     tableFilterSocialJustice,
     tableFilterTransformativePotential,
     showUserGuide,
+    showCollectionMap,
+    showProjectCollectionOnMap,
+    showAllProjectsOnMap,
     getIndicatorFilterValue,
     setIndicatorFilterValue,
     clearIndicatorFilters,
@@ -1444,6 +1560,7 @@ export const useMapStore = defineStore("map", () => {
     getAllFua,
     goBack,
     generatePdf,
+    applyCombinedFilters,
     advancedFiltersApplied,
   };
 });

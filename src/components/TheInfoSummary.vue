@@ -225,9 +225,18 @@
             <strong>Project Description:</strong> {{ mapStore.selectedProject.description }}
           </div>
           <div class="q-my-md text-bold">
-            <a :href="mapStore.selectedProject.website" target="_blank">
+            <q-btn
+              :href="mapStore.selectedProject.website"
+              target="_blank"
+              flat
+              size="md"
+              style="background-color: #f6f2c0"
+              icon="launch"
+              label="Project Website"
+            ></q-btn>
+            <!-- <a :href="mapStore.selectedProject.website" target="_blank">
               <q-icon name="launch"></q-icon> Project Website</a
-            >
+            > -->
           </div>
           <div class="q-mt-sm" style="min-height: 0px !important">
             <div><strong>Project Details:</strong></div>

@@ -64,7 +64,13 @@
                 mapStore.generatePdf();
                 console.log(mapStore.projectCollection);
               "
-              ><q-tooltip>Save Collection</q-tooltip></q-btn
+              ><q-tooltip
+                class="bg-white text-body2 text-black shadow-2"
+                style="border: 1px solid grey"
+                anchor="top middle"
+                self="bottom middle"
+                >Save Collection</q-tooltip
+              ></q-btn
             >
             <q-btn
               class="q-ml-md"
@@ -72,10 +78,25 @@
               text-color="black"
               flat
               round
-              icon="map"
-              @click="mapStore.projectCollection = []"
-              ><q-tooltip>Show on Map</q-tooltip></q-btn
-            >
+              :icon="mapStore.showCollectionMap ? 'location_off' : 'location_on'"
+              @click="mapStore.showProjectCollectionOnMap()"
+              ><q-tooltip
+                v-if="!mapStore.showCollectionMap"
+                class="bg-white text-body2 text-black shadow-2"
+                style="border: 1px solid grey"
+                anchor="top middle"
+                self="bottom middle"
+                >Show on Map</q-tooltip
+              >
+              <q-tooltip
+                v-else
+                class="bg-white text-body2 text-black shadow-2"
+                style="border: 1px solid grey"
+                anchor="top middle"
+                self="bottom middle"
+                >Show all Projects</q-tooltip
+              >
+            </q-btn>
             <q-btn
               class="q-ml-md"
               text-color="black"
@@ -83,8 +104,14 @@
               flat
               round
               icon="delete_forever"
-              @click="mapStore.projectCollection = []"
-              ><q-tooltip>Clear Collection</q-tooltip></q-btn
+              @click="clearCollection"
+              ><q-tooltip
+                class="bg-white text-body2 text-black shadow-2"
+                style="border: 1px solid grey"
+                anchor="top middle"
+                self="bottom middle"
+                >Clear Collection</q-tooltip
+              ></q-btn
             >
           </div>
         </div>
@@ -120,6 +147,13 @@
 import { useMapStore } from "../../stores/mapStore";
 import { ref, watch, computed } from "vue";
 const mapStore = useMapStore();
+
+function clearCollection() {
+  mapStore.projectCollection = [];
+  mapStore.showCollectionMap = false;
+
+  mapStore.applyCombinedFilters();
+}
 
 const removeProject = (row) => {
   const projectIndex = mapStore.projectCollection.findIndex(
