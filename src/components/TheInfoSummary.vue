@@ -37,6 +37,9 @@
             >
             where more details are available on the individual NBS.
           </div>
+          <div>
+            <q-btn @click="mapStore.showUserGuide = !mapStore.showUserGuide">User Guide</q-btn>
+          </div>
           <div class="q-mt-xl">
             <q-btn
               text-color="dark-grey"
@@ -47,6 +50,14 @@
               style="margin: auto; width: fit-content; display: block; background-color: #f6f2c0"
             ></q-btn>
           </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="mapStore.showUserGuide">
+      <q-card style="max-width: 830px; width: 830px">
+        <q-card-section>
+          <UserGuide></UserGuide>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -529,6 +540,7 @@ import { computed, ref, watch } from "vue";
 import ScoreCard from "./UI/ScoreCard.vue";
 import IconButton from "./UI/IconButton.vue";
 import CollectionTable from "./UI/CollectionTable.vue";
+import UserGuide from "./UI/UserGuide.vue";
 import { useMapStore } from "../stores/mapStore";
 const mapStore = useMapStore();
 const filteredProjects = ref([]);
