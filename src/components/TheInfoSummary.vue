@@ -14,7 +14,10 @@
           </div>
           <div>
             The
-            <a href="https://www.naturescapes-project.com/" target="_blank" style="color: #ead755"
+            <a
+              href="https://www.naturescapes-project.com/"
+              target="_blank"
+              style="color: #76c0e7; text-decoration: underline"
               >Naturescapes</a
             >
             project provides an overview of the contributions of different nature-based solutions
@@ -32,7 +35,7 @@
             <a
               href="https://una.city/front-search/collection_phase/5"
               target="_blank"
-              style="color: #ead755"
+              style="color: #76c0e7; text-decoration: underline"
               >Urban Nature Atlas</a
             >
             where more details are available on the individual NBS.
