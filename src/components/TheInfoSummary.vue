@@ -37,10 +37,20 @@
             >
             where more details are available on the individual NBS.
           </div>
-          <div>
-            <q-btn @click="mapStore.showUserGuide = !mapStore.showUserGuide">User Guide</q-btn>
-          </div>
           <div class="q-mt-xl">
+            <q-btn
+              @click="mapStore.showUserGuide = !mapStore.showUserGuide"
+              text-color="dark-grey"
+              flat
+              style="
+                margin: 15px auto;
+                width: fit-content;
+                display: block;
+                background-color: #f6f2c0;
+              "
+              outline
+              >User Guide</q-btn
+            >
             <q-btn
               text-color="dark-grey"
               flat
@@ -65,6 +75,7 @@
     <div class="q-mb-md" style="display: flex">
       <!-- <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2> -->
       <q-img
+        @click="refreshPage"
         class="logo-image q-my-sm"
         fit="contain"
         src="/banner.png"
@@ -608,6 +619,10 @@ const sendToProjectCollection = () => {
     : mapStore.projectCollection.push(project);
 
   console.log(mapStore.projectCollection);
+};
+
+const refreshPage = () => {
+  window.location.reload();
 };
 
 watch(
