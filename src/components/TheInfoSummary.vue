@@ -8,7 +8,7 @@
               class="logo-image q-my-sm"
               fit="contain"
               src="/banner.png"
-              alt="Naturescapes Logo"
+              alt="Naturescape Logo"
               style="height: 100px; width: 100%"
             />
           </div>
@@ -76,7 +76,6 @@
     </q-dialog>
 
     <div class="q-mb-md" style="display: flex">
-      <!-- <h2 style="margin: auto; display: block; width: fit-content">Naturescapes</h2> -->
       <q-img
         @click="refreshPage"
         class="logo-image q-my-sm"
@@ -85,10 +84,9 @@
         alt="Naturescapes Logo"
         style="height: 100px; width: 100%"
       />
-      <!-- <IconButton type="info" method="showInfo" @showInfo="showInfo" /> -->
     </div>
-    <q-separator class="q-mt-md" />
-    <q-scroll-area class="outer-scroll-area q-mt-md q-pr-md q-pb-none">
+    <q-separator class="q-mt-md q-mr-md" />
+    <q-scroll-area class="outer-scroll-area q-mt-md q-pr-md">
       <div
         v-if="!mapStore.selectedProject"
         style="
@@ -667,15 +665,20 @@ watch(
 </script>
 
 <style scoped>
+@media (max-width: 768px) {
+  .outer-scroll-area {
+    height: calc(100% - 180px) !important;
+  }
+
+  .card-grid,
+  .card-grid.is-expanded,
+  .card-grid.is-collapsed {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
 .search-row {
-  /* --space: 12px; */
   display: grid;
-  /* grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space);
-  padding: 0;
-  width: 100%;
-  box-sizing: border-box; */
 }
 
 .cards-wrap {
@@ -734,9 +737,6 @@ watch(
   transition:
     box-shadow 0.2s ease,
     border-color 0.2s ease;
-}
-
-.search {
   padding: 0 12px;
 }
 

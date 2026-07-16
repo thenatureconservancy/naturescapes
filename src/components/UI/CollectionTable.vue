@@ -12,7 +12,7 @@
       style="height: calc(100vh - 235px); width: 100%"
     >
       <template v-slot:top="">
-        <div>
+        <div id="checkbox-row">
           <q-checkbox
             v-model="mapStore.tableFilterBiodiversity"
             toggle-order="tf"
@@ -397,6 +397,16 @@ watch(
 </script>
 
 <style lang="sass">
+@media (max-width: 768px)
+  #checkbox-row
+    display: flex
+    flex-direction: column
+    align-items: flex-start
+
+  .my-sticky-header-column-table
+    height: 100% !important
+    margin-bottom: 45px !important
+
 .my-sticky-header-column-table
   /* height or max-height is important */
   height: 100%
