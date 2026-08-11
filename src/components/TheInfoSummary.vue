@@ -40,6 +40,10 @@
             >
             where more details are available on the individual NBS.
           </div>
+          <div class="q-my-md text-bold">
+            Disclaimer: NBS sites have been evaluated on the basis of published plans and documents,
+            and our scores do not include any on the ground information or validation.
+          </div>
           <div class="q-mt-xl">
             <q-btn
               @click="mapStore.showUserGuide = !mapStore.showUserGuide"

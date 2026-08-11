@@ -190,7 +190,7 @@ const allColumns = [
     name: "protectedAreas",
     label: "Protected Areas",
     field: "protectedAreas",
-    sortable: true,
+    // sortable: true,
     align: "center",
     group: "biodiversity",
     style: "background-color: #e1ebd7",
@@ -214,7 +214,7 @@ const allColumns = [
   {
     name: "biodiversityAmbitionPerformance",
     label: "Ambition & Performance",
-    field: "ambitionPerformance",
+    field: "biodiversityAmbitionPerformance",
     group: "biodiversity",
     style: "background-color: #e1ebd7",
     align: "center",
@@ -256,7 +256,7 @@ const allColumns = [
   {
     name: "climateAmbitionPerformance",
     label: "Ambition & Performance",
-    field: "ambitionPerformance",
+    field: "climateAmbitionPerformance",
     group: "climate",
     style: "background-color: #f3d7d3",
     align: "center",
@@ -298,7 +298,7 @@ const allColumns = [
   {
     name: "socialJusticeAmbitionPerformance",
     label: "Ambition & Performance",
-    field: "ambitionPerformance",
+    field: "socialJusticeAmbitionPerformance",
     group: "socialJustice",
     style: "background-color: #e0f1f9",
     align: "center",
@@ -389,7 +389,7 @@ watch(
       longTermPerspective: project["Long-term perspective"],
       diversity: project["Diversity of stakeholder involvement"],
       targetAlignment:
-        project["Alignment of NBS targets with Climate, Biodiversity, and Social Objectives"],
+        project["Alignment of NBS Targets with Climate, Biodiversity, and Social Objectives"],
     }));
   },
   { immediate: true, deep: true },

@@ -76,7 +76,7 @@ const mapStore = useMapStore();
   overflow-y: auto;
   position: absolute;
   top: 20px;
-  bottom: 60px;
+  bottom: 20px;
   right: 20px;
   z-index: 999;
   border-radius: 10px;

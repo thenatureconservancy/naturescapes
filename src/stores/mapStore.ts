@@ -643,6 +643,7 @@ export const useMapStore = defineStore("map", () => {
         lookUpProject(e.feature);
       },
     });
+    console.log("we have added the map click interaction");
   };
 
   const applyBasemapStyle = (option: string) => {
@@ -673,6 +674,7 @@ export const useMapStore = defineStore("map", () => {
     mapboxgl.accessToken = mapboxToken;
 
     if (!map.value) {
+      console.log("[initMap] creating new map instance");
       const mapInstance = markRaw(
         new mapboxgl.Map({
           container: "map",
@@ -683,131 +685,139 @@ export const useMapStore = defineStore("map", () => {
         }),
       );
 
+      console.log("[initMap] registering load listener");
+      mapInstance.on("error", (e) => console.error("[mapbox error]", e));
       mapInstance.on("load", async () => {
-        map.value = mapInstance;
-        zoomLevel.value = mapInstance.getZoom();
-        mapInstance.showTileBoundaries = false;
-
-        // Reapply fog whenever the active style changes.
-        mapInstance.on("style.load", () => {
-          applyMapFog(mapInstance);
-        });
-
-        const ensureMapTopNotify = () => {
-          if (mapTopNotifyEl) return mapTopNotifyEl;
-
-          const container = mapInstance.getContainer();
-          const notifyEl = document.createElement("div");
-          notifyEl.style.position = "absolute";
-          notifyEl.style.top = "12px";
-          notifyEl.style.left = "50%";
-          notifyEl.style.transform = "translateX(-50%)";
-          notifyEl.style.zIndex = "2";
-          notifyEl.style.padding = "12px";
-          notifyEl.style.borderRadius = "6px";
-          notifyEl.style.background = "#f6f2c0";
-          notifyEl.style.color = "black";
-          notifyEl.style.fontSize = "18px";
-          notifyEl.style.fontWeight = "400";
-          notifyEl.style.boxShadow = "0 4px 14px rgba(0, 0, 0, 0.2)";
-          notifyEl.style.display = "flex";
-          notifyEl.style.alignItems = "center";
-          notifyEl.style.gap = "10px";
-          notifyEl.style.pointerEvents = "none";
-          notifyEl.style.opacity = "0";
-          notifyEl.style.visibility = "hidden";
-          notifyEl.style.transform = "translate(-50%, -12px)";
-          notifyEl.style.transition = "transform 220ms ease, opacity 220ms ease";
-
-          const messageEl = document.createElement("span");
-          messageEl.style.lineHeight = "1.2";
-
-          const closeBtn = document.createElement("button");
-          closeBtn.type = "button";
-          closeBtn.textContent = "\u00d7";
-          closeBtn.setAttribute("aria-label", "Close notification");
-          closeBtn.style.border = "none";
-          closeBtn.style.background = "transparent";
-          closeBtn.style.color = "black";
-          closeBtn.style.cursor = "pointer";
-          closeBtn.style.fontSize = "22px";
-          closeBtn.style.lineHeight = "1";
-          closeBtn.style.padding = "0";
-          closeBtn.style.margin = "0";
-          closeBtn.style.pointerEvents = "auto";
-
-          closeBtn.addEventListener("click", () => {
-            hideMapTopNotify();
-          });
-
-          notifyEl.appendChild(messageEl);
-          notifyEl.appendChild(closeBtn);
-
-          container.appendChild(notifyEl);
-          mapTopNotifyEl = notifyEl;
-          mapTopNotifyMessageEl = messageEl;
-          return notifyEl;
-        };
-
-        const showMapTopNotify = (message: string) => {
-          if (selectedFeature.value) return;
-
-          const notifyEl = ensureMapTopNotify();
-          if (mapTopNotifyHideTimeout) {
-            clearTimeout(mapTopNotifyHideTimeout);
-            mapTopNotifyHideTimeout = null;
-          }
-          if (mapTopNotifyMessageEl) {
-            mapTopNotifyMessageEl.textContent = message;
-          }
-          notifyEl.style.visibility = "visible";
-          notifyEl.style.pointerEvents = "auto";
-          requestAnimationFrame(() => {
-            notifyEl.style.opacity = "1";
-            notifyEl.style.transform = "translate(-50%, 0)";
-          });
-        };
-
-        mapInstance.on("zoom", () => {
+        console.log("[initMap] load event fired");
+        try {
+          map.value = mapInstance;
           zoomLevel.value = mapInstance.getZoom();
-          applyFeatureVisibilityMode();
-          // console.log("Zoom level:", zoomLevel.value);
-          if (zoomLevel.value >= 10) {
-            if (!initialNotify.value && !selectedFeature.value) {
-              showMapTopNotify("Click on a polygon to see project details");
-              initialNotify.value = true;
-            }
-          } else {
-            if (initialNotify.value) {
+          mapInstance.showTileBoundaries = false;
+
+          // Reapply fog whenever the active style changes.
+          mapInstance.on("style.load", () => {
+            applyMapFog(mapInstance);
+          });
+
+          const ensureMapTopNotify = () => {
+            if (mapTopNotifyEl) return mapTopNotifyEl;
+
+            const container = mapInstance.getContainer();
+            const notifyEl = document.createElement("div");
+            notifyEl.style.position = "absolute";
+            notifyEl.style.top = "12px";
+            notifyEl.style.left = "50%";
+            notifyEl.style.transform = "translateX(-50%)";
+            notifyEl.style.zIndex = "2";
+            notifyEl.style.padding = "12px";
+            notifyEl.style.borderRadius = "6px";
+            notifyEl.style.background = "#f6f2c0";
+            notifyEl.style.color = "black";
+            notifyEl.style.fontSize = "18px";
+            notifyEl.style.fontWeight = "400";
+            notifyEl.style.boxShadow = "0 4px 14px rgba(0, 0, 0, 0.2)";
+            notifyEl.style.display = "flex";
+            notifyEl.style.alignItems = "center";
+            notifyEl.style.gap = "10px";
+            notifyEl.style.pointerEvents = "none";
+            notifyEl.style.opacity = "0";
+            notifyEl.style.visibility = "hidden";
+            notifyEl.style.transform = "translate(-50%, -12px)";
+            notifyEl.style.transition = "transform 220ms ease, opacity 220ms ease";
+
+            const messageEl = document.createElement("span");
+            messageEl.style.lineHeight = "1.2";
+
+            const closeBtn = document.createElement("button");
+            closeBtn.type = "button";
+            closeBtn.textContent = "\u00d7";
+            closeBtn.setAttribute("aria-label", "Close notification");
+            closeBtn.style.border = "none";
+            closeBtn.style.background = "transparent";
+            closeBtn.style.color = "black";
+            closeBtn.style.cursor = "pointer";
+            closeBtn.style.fontSize = "22px";
+            closeBtn.style.lineHeight = "1";
+            closeBtn.style.padding = "0";
+            closeBtn.style.margin = "0";
+            closeBtn.style.pointerEvents = "auto";
+
+            closeBtn.addEventListener("click", () => {
               hideMapTopNotify();
-              initialNotify.value = false;
+            });
+
+            notifyEl.appendChild(messageEl);
+            notifyEl.appendChild(closeBtn);
+
+            container.appendChild(notifyEl);
+            mapTopNotifyEl = notifyEl;
+            mapTopNotifyMessageEl = messageEl;
+            return notifyEl;
+          };
+
+          const showMapTopNotify = (message: string) => {
+            if (selectedFeature.value) return;
+
+            const notifyEl = ensureMapTopNotify();
+            if (mapTopNotifyHideTimeout) {
+              clearTimeout(mapTopNotifyHideTimeout);
+              mapTopNotifyHideTimeout = null;
             }
-          }
+            if (mapTopNotifyMessageEl) {
+              mapTopNotifyMessageEl.textContent = message;
+            }
+            notifyEl.style.visibility = "visible";
+            notifyEl.style.pointerEvents = "auto";
+            requestAnimationFrame(() => {
+              notifyEl.style.opacity = "1";
+              notifyEl.style.transform = "translate(-50%, 0)";
+            });
+          };
 
+          mapInstance.on("zoom", () => {
+            zoomLevel.value = mapInstance.getZoom();
+            applyFeatureVisibilityMode();
+            // console.log("Zoom level:", zoomLevel.value);
+            if (zoomLevel.value >= 10) {
+              if (!initialNotify.value && !selectedFeature.value) {
+                showMapTopNotify("Click on a polygon to see project details");
+                initialNotify.value = true;
+              }
+            } else {
+              if (initialNotify.value) {
+                hideMapTopNotify();
+                initialNotify.value = false;
+              }
+            }
+
+            syncVisibleProjectsFromMap();
+          });
+
+          mapInstance.on("moveend", () => {
+            syncVisibleProjectsFromMap();
+          });
+
+          mapInstance.on("idle", () => {
+            syncVisibleProjectsFromMap();
+          });
+
+          applyMapFog(mapInstance);
+
+          // function initialization
+          // ---------------------------------------
+          addMapControls();
+          await addNBSLayer();
+          zoomToGlobal();
+          getAllProjects();
+          getAllFua();
+          applyFeatureVisibilityMode();
           syncVisibleProjectsFromMap();
-        });
 
-        mapInstance.on("moveend", () => {
-          syncVisibleProjectsFromMap();
-        });
-
-        mapInstance.on("idle", () => {
-          syncVisibleProjectsFromMap();
-        });
-
-        applyMapFog(mapInstance);
-
-        // function initialization
-        // ---------------------------------------
-        addMapControls();
-        await addNBSLayer();
-        zoomToGlobal();
-        getAllProjects();
-        getAllFua();
-        applyFeatureVisibilityMode();
-        await syncVisibleProjectsFromMap();
-
-        addPolygonClickInteraction(mapInstance);
+          addPolygonClickInteraction(mapInstance);
+          console.log("ran addplygonclickinteraction");
+        } catch (err) {
+          console.error("Error during map load initialization:", err);
+        }
       });
     }
     mapLoaded.value = true;
