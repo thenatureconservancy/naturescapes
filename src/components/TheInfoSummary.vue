@@ -114,7 +114,7 @@
           toggle-text-color="black"
           style="border: 1px solid #e0e0e0"
           :options="[
-            { label: 'All NBS Projects', value: 'all', slot: 'one' },
+            { label: 'NBS Projects Displayed', value: 'all', slot: 'one' },
             { label: 'Naturescape Collection', value: 'set', slot: 'two' },
           ]"
         >
@@ -595,6 +595,7 @@ function applyKeywordFilter() {
 
   if (!keywordSearch) {
     filteredProjects.value = baseProjects;
+    mapStore.syncKeywordHighlight([]);
     return;
   }
 
@@ -611,6 +612,11 @@ function applyKeywordFilter() {
         .toLowerCase()
         .includes(keywordSearch),
   );
+
+  const highlightIds = filteredProjects.value
+    .map((p) => Number(p.ID ?? p.id))
+    .filter((id) => Number.isFinite(id));
+  mapStore.syncKeywordHighlight(highlightIds);
 }
 
 const sendToProjectCollection = () => {

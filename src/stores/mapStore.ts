@@ -92,6 +92,8 @@ export const useMapStore = defineStore("map", () => {
   let allPolygonFeatures: any[] = [];
   let allCentroidFeatures: any[] = [];
 
+  const keywordHighlightIds = ref<number[]>([]);
+
   const advancedFiltersApplied = computed(
     () =>
       Object.values(indicatorFilterState).some((state) => state.active) ||
@@ -777,6 +779,10 @@ export const useMapStore = defineStore("map", () => {
           mapInstance.on("zoom", () => {
             zoomLevel.value = mapInstance.getZoom();
             applyFeatureVisibilityMode();
+            // Keyword highlight rings are only relevant in cluster/point mode (zoom < 10)
+            const hasHighlights = keywordHighlightIds.value.length > 0;
+            setLayerVisibility("keyword-cluster-highlight", zoomLevel.value < 10 && hasHighlights);
+            setLayerVisibility("keyword-point-highlight", zoomLevel.value < 10 && hasHighlights);
             // console.log("Zoom level:", zoomLevel.value);
             if (zoomLevel.value >= 10) {
               if (!initialNotify.value && !selectedFeature.value) {
@@ -799,6 +805,10 @@ export const useMapStore = defineStore("map", () => {
 
           mapInstance.on("idle", () => {
             syncVisibleProjectsFromMap();
+            // Re-query clusters after tiles settle — cluster IDs change across zoom levels.
+            if (keywordHighlightIds.value.length > 0) {
+              syncKeywordHighlight(keywordHighlightIds.value);
+            }
           });
 
           applyMapFog(mapInstance);
@@ -956,10 +966,99 @@ export const useMapStore = defineStore("map", () => {
       },
     });
 
+    // 9. Keyword highlight ring – clusters
+    map.value.addLayer({
+      id: "keyword-cluster-highlight",
+      type: "circle",
+      source: "nbs-centroids",
+      filter: ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]], // initially nothing
+      paint: {
+        "circle-color": "rgba(0,0,0,0)",
+        "circle-stroke-color": "#7CF8FA",
+        "circle-stroke-width": 3,
+        "circle-radius": ["step", ["get", "point_count"], 18, 10, 23, 50, 33],
+      },
+    });
+
+    // 10. Keyword highlight ring – unclustered points
+    map.value.addLayer({
+      id: "keyword-point-highlight",
+      type: "circle",
+      source: "nbs-centroids",
+      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "ID"], -1]], // initially nothing
+      paint: {
+        "circle-color": "rgba(0,0,0,0)",
+        "circle-stroke-color": "#7CF8FA",
+        "circle-stroke-width": 3,
+        "circle-radius": 9,
+      },
+    });
+
     // Re-apply current location/indicator filters after sources/layers are ready.
     applyCombinedFilters();
 
     syncSelectedFeatureHighlight(selectedFeature.value);
+    syncKeywordHighlight(keywordHighlightIds.value);
+  };
+
+  const syncKeywordHighlight = async (ids: number[]) => {
+    keywordHighlightIds.value = ids;
+    if (!map.value) return;
+
+    const isPolygonMode = zoomLevel.value !== null && zoomLevel.value >= 10;
+
+    if (ids.length === 0) {
+      setLayerVisibility("keyword-point-highlight", false);
+      setLayerVisibility("keyword-cluster-highlight", false);
+      if (map.value.getLayer("keyword-point-highlight")) {
+        map.value.setFilter("keyword-point-highlight", ["all", ["!", ["has", "point_count"]], ["==", ["get", "ID"], -1]]);
+      }
+      if (map.value.getLayer("keyword-cluster-highlight")) {
+        map.value.setFilter("keyword-cluster-highlight", ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]]);
+      }
+      return;
+    }
+
+    // In polygon mode (zoom >= 10) the circle layers aren't shown; keep highlights hidden.
+    setLayerVisibility("keyword-point-highlight", !isPolygonMode);
+    setLayerVisibility("keyword-cluster-highlight", !isPolygonMode);
+
+    const idSet = new Set(ids);
+
+    // Update filters even in polygon mode so they're correct when zooming back out.
+    if (map.value.getLayer("keyword-point-highlight")) {
+      map.value.setFilter("keyword-point-highlight", [
+        "all",
+        ["!", ["has", "point_count"]],
+        ["in", ["get", "ID"], ["literal", ids]],
+      ]);
+    }
+
+    if (map.value.getLayer("keyword-cluster-highlight")) {
+      const clusterFeatures = map.value.queryRenderedFeatures({ layers: ["clusters"] });
+      const matchingClusterIds: number[] = [];
+
+      await Promise.all(
+        clusterFeatures.map(async (cf) => {
+          const clusterId = Number(cf.properties?.cluster_id);
+          if (!Number.isFinite(clusterId)) return;
+          const leafIds = await getClusterLeafProjectIds(clusterId);
+          if (leafIds.some((id) => idSet.has(id))) {
+            matchingClusterIds.push(clusterId);
+          }
+        }),
+      );
+
+      if (matchingClusterIds.length > 0) {
+        map.value.setFilter("keyword-cluster-highlight", [
+          "all",
+          ["has", "point_count"],
+          ["in", ["get", "cluster_id"], ["literal", matchingClusterIds]],
+        ]);
+      } else {
+        map.value.setFilter("keyword-cluster-highlight", ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]]);
+      }
+    }
   };
 
   const closeResultsPanel = () => {
@@ -1622,5 +1721,6 @@ export const useMapStore = defineStore("map", () => {
     generatePdf,
     applyCombinedFilters,
     advancedFiltersApplied,
+    syncKeywordHighlight,
   };
 });
