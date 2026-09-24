@@ -90,7 +90,7 @@
       />
     </div>
     <q-separator class="q-mt-md q-mr-md" />
-    <q-scroll-area class="outer-scroll-area q-mt-md q-pr-md">
+    <q-scroll-area ref="scrollAreaRef" class="outer-scroll-area q-mt-md q-pr-md">
       <div
         v-if="!mapStore.selectedProject"
         style="
@@ -346,7 +346,7 @@
             </div>
             <table style="border-collapse: collapse; width: 100%">
               <tr>
-                <th :style="cellStyle" style="background-color: lightgrey"></th>
+                <th :style="cellStyle" style="background-color: #e1ebd7"></th>
                 <th :style="cellStyle">Protected<br />Areas</th>
                 <th :style="cellStyle">Coastal<br />Habitats</th>
                 <th :style="cellStyle">Fraction of<br />Natural Area</th>
@@ -394,7 +394,7 @@
             </div>
             <table style="border-collapse: collapse; width: 100%">
               <tr>
-                <th :style="cellStyle" style="background-color: lightgrey"></th>
+                <th :style="cellStyle" style="background-color: #f3d7d3"></th>
                 <th :style="cellStyle">Land Surface<br />Temperature</th>
                 <th :style="cellStyle">Carbon<br />Storage</th>
                 <th :style="cellStyle">Stormwater Holding<br />Capacity</th>
@@ -442,7 +442,7 @@
             </div>
             <table style="border-collapse: collapse; width: 100%">
               <tr>
-                <th :style="cellStyle" style="background-color: lightgrey"></th>
+                <th :style="cellStyle" style="background-color: #e0f1f9"></th>
                 <th :style="cellStyle">Population Access<br />to Blue and Green<br />Spaces</th>
                 <th :style="cellStyle">Recreation Potential<br />Within and Without<br />NBS</th>
                 <th :style="cellStyle">Inclusiveness<br />of<br />Project Beneficiaries</th>
@@ -489,7 +489,7 @@
             </div>
             <table style="border-collapse: collapse; width: 100%">
               <tr>
-                <th :style="cellStyle" style="background-color: lightgrey"></th>
+                <th :style="cellStyle" style="background-color: #f6f2c0"></th>
                 <th :style="cellStyle">
                   Potential for<br />High Quality<br />Project Result Delivery
                 </th>
@@ -560,6 +560,7 @@ import UserGuide from "./UI/UserGuide.vue";
 import { useMapStore } from "../stores/mapStore";
 const mapStore = useMapStore();
 const filteredProjects = ref([]);
+const scrollAreaRef = ref(null);
 
 const MAX_SCORE = 16;
 
@@ -665,6 +666,10 @@ watch(
   (newValue) => {
     if (newValue) {
       mapStore.showSummaryInfo = false;
+      // Scroll the scroll area to the top
+      if (scrollAreaRef.value) {
+        scrollAreaRef.value.setScrollPosition("vertical", 0, 300);
+      }
       const element = document.getElementById("selected-project-info");
       if (element) {
         element.scrollIntoView({ behavior: "smooth" });

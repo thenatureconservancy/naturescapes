@@ -93,6 +93,7 @@ export const useMapStore = defineStore("map", () => {
   let allCentroidFeatures: any[] = [];
 
   const keywordHighlightIds = ref<number[]>([]);
+  let hoverPopup: mapboxgl.Popup | null = null;
 
   const advancedFiltersApplied = computed(
     () =>
@@ -648,6 +649,60 @@ export const useMapStore = defineStore("map", () => {
     console.log("we have added the map click interaction");
   };
 
+  const addPolygonHoverInteraction = (mapInstance: any) => {
+    // Create hover popup if it doesn't exist
+    if (!hoverPopup) {
+      hoverPopup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+      });
+    }
+
+    // Handle mouseover
+    mapInstance.on("mouseover", "nbs-polygons-fill", (e: any) => {
+      if (!mapInstance || !hoverPopup) return;
+
+      const features = mapInstance.queryRenderedFeatures(e.point, {
+        layers: ["nbs-polygons-fill"],
+      });
+
+      if (!features || features.length === 0) return;
+
+      const featureId = Number(features[0].properties?.ID);
+      const project = Number.isFinite(featureId)
+        ? allProjects.value.find((p: any) => Number(p.ID) === featureId)
+        : undefined;
+      const projectName = project?.["Name (short English title)"] as string | undefined;
+
+      if (!projectName) return;
+
+      hoverPopup
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div style="padding: 8px; font-size: 14px; font-weight: 500;">${projectName}</div>`,
+        )
+        .addTo(mapInstance);
+
+      // Change cursor to pointer
+      mapInstance.getCanvas().style.cursor = "pointer";
+    });
+
+    // Handle mousemove to follow cursor
+    mapInstance.on("mousemove", "nbs-polygons-fill", (e: any) => {
+      if (!hoverPopup) return;
+      hoverPopup.setLngLat(e.lngLat);
+    });
+
+    // Handle mouseleave
+    mapInstance.on("mouseleave", "nbs-polygons-fill", () => {
+      if (!hoverPopup) return;
+      hoverPopup.remove();
+      if (mapInstance) {
+        mapInstance.getCanvas().style.cursor = "";
+      }
+    });
+  };
+
   const applyBasemapStyle = (option: string) => {
     if (!map.value) return;
 
@@ -662,6 +717,7 @@ export const useMapStore = defineStore("map", () => {
       await syncVisibleProjectsFromMap();
 
       addPolygonClickInteraction(mapInstance);
+      addPolygonHoverInteraction(mapInstance);
     });
 
     mapInstance.setStyle(nextStyle);
@@ -824,6 +880,7 @@ export const useMapStore = defineStore("map", () => {
           syncVisibleProjectsFromMap();
 
           addPolygonClickInteraction(mapInstance);
+          addPolygonHoverInteraction(mapInstance);
           console.log("ran addplygonclickinteraction");
         } catch (err) {
           console.error("Error during map load initialization:", err);
@@ -1011,10 +1068,18 @@ export const useMapStore = defineStore("map", () => {
       setLayerVisibility("keyword-point-highlight", false);
       setLayerVisibility("keyword-cluster-highlight", false);
       if (map.value.getLayer("keyword-point-highlight")) {
-        map.value.setFilter("keyword-point-highlight", ["all", ["!", ["has", "point_count"]], ["==", ["get", "ID"], -1]]);
+        map.value.setFilter("keyword-point-highlight", [
+          "all",
+          ["!", ["has", "point_count"]],
+          ["==", ["get", "ID"], -1],
+        ]);
       }
       if (map.value.getLayer("keyword-cluster-highlight")) {
-        map.value.setFilter("keyword-cluster-highlight", ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]]);
+        map.value.setFilter("keyword-cluster-highlight", [
+          "all",
+          ["has", "point_count"],
+          ["==", ["get", "cluster_id"], -1],
+        ]);
       }
       return;
     }
@@ -1056,7 +1121,11 @@ export const useMapStore = defineStore("map", () => {
           ["in", ["get", "cluster_id"], ["literal", matchingClusterIds]],
         ]);
       } else {
-        map.value.setFilter("keyword-cluster-highlight", ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]]);
+        map.value.setFilter("keyword-cluster-highlight", [
+          "all",
+          ["has", "point_count"],
+          ["==", ["get", "cluster_id"], -1],
+        ]);
       }
     }
   };
