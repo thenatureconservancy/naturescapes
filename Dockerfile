@@ -25,18 +25,18 @@ server {
   index index.html;
 
   # Serve static assets with cache headers
-  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+  location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
     expires 30d;
     add_header Cache-Control "public, immutable";
   }
 
   # SPA routing - serve index.html for all non-asset requests
   location / {
-    try_files $uri $uri/ /index.html;
+    try_files \$uri \$uri/ /index.html;
   }
 
   # Deny access to hidden files
-  location ~ /\. {
+  location ~ /\\. {
     deny all;
   }
 }
